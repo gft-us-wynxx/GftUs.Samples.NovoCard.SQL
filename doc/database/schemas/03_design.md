@@ -1,26 +1,26 @@
-# Esquema de Dados: `design`
+# Data Schema: `design`
 
-## Visão Geral
+## Overview
 
-Este artefato define o esquema (namespace) **`design`** no banco de dados da aplicação **NovoCard**. O esquema é dedicado à **customização e branding de cartões**, armazenando templates de design, designs atribuídos a clientes e os ativos digitais que os compõem. Ele suporta a experiência de personalização para cartões de **crédito**, **débito** e **pré-pago**.
-
----
-
-## Estrutura de Dados
-
-| Elemento | Tipo | Descrição |
-|---|---|---|
-| `design` | Schema (namespace) | Esquema lógico que agrupa todos os objetos relacionados à personalização visual de cartões |
+This artifact defines the **`design`** schema (namespace) in the **NovoCard** application database. The schema is dedicated to **card customization and branding**, storing design templates, customer-assigned designs, and the digital assets that compose them. It supports the personalization experience for **credit**, **debit**, and **prepaid** cards.
 
 ---
 
-## Comportamento da Criação
+## Data Structure
 
-O script realiza uma **criação condicional** do esquema `design`:
+| Element  | Type              | Description                                                                               |
+|----------|-------------------|-------------------------------------------------------------------------------------------|
+| `design` | Schema (namespace)| Logical schema grouping all objects related to the visual personalization of cards         |
 
-1. Verifica na view de sistema `sys.schemas` se já existe um esquema com o nome `design`.
-2. Caso **não exista**, o esquema é criado.
-3. Caso **já exista**, nenhuma ação é executada, evitando erros de duplicidade.
+---
+
+## Creation Behavior
+
+The script performs a **conditional creation** of the `design` schema:
+
+1. Checks `sys.schemas` to determine whether a schema named `design` already exists.
+2. If it **does not exist**, the schema is created.
+3. If it **already exists**, no action is taken, avoiding duplicate errors.
 
 ---
 
@@ -28,10 +28,10 @@ O script realiza uma **criação condicional** do esquema `design`:
 
 ```mermaid
 graph TD
-    A[Início] --> B{Esquema design já existe em sys.schemas?}
-    B -- Sim --> C[Nenhuma ação realizada]
-    B -- Não --> D[Criar esquema design]
-    D --> E[Fim]
+    A[Start] --> B{Does design schema already exist in sys.schemas?}
+    B -- Yes --> C[No action taken]
+    B -- No --> D[Create design schema]
+    D --> E[End]
     C --> E
 ```
 
@@ -39,7 +39,7 @@ graph TD
 
 ## Insights
 
-- O esquema `design` funciona como um **agrupador lógico** para todas as tabelas, views e demais objetos relacionados à personalização visual de cartões dentro do banco de dados.
-- A abordagem de criação condicional (idempotente) garante que o script pode ser executado múltiplas vezes sem efeitos colaterais, o que é uma boa prática para scripts de implantação e migração.
-- Este é um artefato **fundacional** — outros objetos do domínio de personalização de cartões (templates, designs atribuídos, ativos digitais) serão criados dentro deste esquema.
-- A aplicação **NovoCard** utiliza separação por schemas para organizar domínios de negócio distintos, promovendo isolamento e clareza na estrutura do banco de dados.
+- The `design` schema acts as a **logical grouper** for all tables, views, and other objects related to card visual personalization within the database.
+- The conditional (idempotent) creation approach ensures the script can be executed multiple times without side effects — a best practice for deployment and migration scripts.
+- This is a **foundational artifact** — other objects in the card personalization domain (templates, assigned designs, digital assets) will be created inside this schema.
+- **NovoCard** uses schema separation to organize distinct business domains, promoting isolation and clarity in the database structure.

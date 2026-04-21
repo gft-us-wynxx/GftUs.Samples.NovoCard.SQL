@@ -1,98 +1,96 @@
+# customer.vw_customer_card_portfolio
 
+## Overview
 
-# customer.vwcustomercardportfolio
-
-## Visão Geral
-
-Estrutura de dados do tipo **View** pertencente ao schema `customer`, na aplicação **NovoCard**. Consolida informações de portfólio de cartões no nível do cliente, apresentando a quantidade de cartões por classe de produto, a exposição total de crédito e o contexto de KYC e status cadastral. Utilizada pelas equipes de **CRM** e **Risco**.
+**View** data structure belonging to the `customer` schema in the **NovoCard** application. Consolidates card portfolio information at the customer level, presenting card counts by product class, total credit exposure, and KYC and registration status context. Used by **CRM** and **Risk** teams.
 
 ---
 
-## Tabelas de Origem
+## Source Tables
 
-| Alias | Tabela | Schema | Tipo de Junção | Chave de Relacionamento |
-|-------|--------|--------|----------------|-------------------------|
-| `cust` | `customers` | `customer` | Tabela principal | — |
-| `c` | `cards` | `card` | LEFT JOIN | `c.customerid = cust.customerid` |
-| `ct` | `cardtypes` | `card` | LEFT JOIN | `ct.cardtypeid = c.cardtypeid` |
-| `ca` | `cardaccounts` | `card` | LEFT JOIN | `ca.cardid = c.cardid` |
+| Alias | Table | Schema | Join Type | Relationship Key |
+|-------|-------|--------|-----------|-----------------|
+| `cust` | `customers` | `customer` | Main table | — |
+| `c` | `cards` | `card` | LEFT JOIN | `c.customer_id = cust.customer_id` |
+| `ct` | `card_types` | `card` | LEFT JOIN | `ct.card_type_id = c.card_type_id` |
+| `ca` | `card_accounts` | `card` | LEFT JOIN | `ca.card_id = c.card_id` |
 
-O uso de `LEFT JOIN` garante que todos os clientes sejam retornados, mesmo aqueles que não possuem cartões vinculados.
-
----
-
-## Colunas Retornadas
-
-### Dados Cadastrais do Cliente
-
-| Coluna | Descrição |
-|--------|-----------|
-| `customerid` | Identificador único do cliente |
-| `fullname` | Nome completo |
-| `email` | Endereço de e-mail |
-| `kycstatus` | Situação do processo de Know Your Customer |
-| `customerstatus` | Status cadastral do cliente |
-| `creditscore` | Pontuação de crédito |
-| `incomerange` | Faixa de renda declarada |
-
-### Contagem de Cartões por Classe de Produto
-
-| Coluna | Descrição |
-|--------|-----------|
-| `totalcards` | Quantidade total de cartões vinculados ao cliente (todos os status) |
-| `activecreditcards` | Quantidade de cartões de **crédito** com status ativo |
-| `activedebitcards` | Quantidade de cartões de **débito** com status ativo |
-| `activeprepaidcards` | Quantidade de cartões **pré-pagos** com status ativo |
-
-### Exposição de Crédito
-
-| Coluna | Descrição |
-|--------|-----------|
-| `totalcreditlimit` | Soma dos limites de crédito de todos os cartões de crédito |
-| `totalcreditutilized` | Soma dos saldos utilizados nos cartões de crédito |
-| `totalcreditavailable` | Soma do crédito disponível nos cartões de crédito |
-
-### Saldos Pré-Pagos
-
-| Coluna | Descrição |
-|--------|-----------|
-| `totalprepaidbalance` | Soma dos saldos dos cartões pré-pagos |
-
-### Atividade e Datas
-
-| Coluna | Descrição |
-|--------|-----------|
-| `lastcardusedat` | Data/hora da última utilização de qualquer cartão do cliente |
-| `onboardedat` | Data de cadastro (onboarding) do cliente |
-| `lastloginat` | Data/hora do último login do cliente |
+The use of `LEFT JOIN` ensures all customers are returned, including those without any linked cards.
 
 ---
 
-## Classes de Produto Consideradas
+## Returned Columns
 
-| Classe | Descrição |
-|--------|-----------|
-| `CREDIT` | Cartão de crédito |
-| `DEBIT` | Cartão de débito |
-| `PREPAID` | Cartão pré-pago |
+### Customer Registration Data
+
+| Column | Description |
+|--------|-------------|
+| `customer_id` | Unique customer identifier |
+| `full_name` | Full name |
+| `email` | Email address |
+| `kyc_status` | Know Your Customer verification status |
+| `customer_status` | Customer registration status |
+| `credit_score` | Credit score |
+| `income_range` | Self-declared income bracket |
+
+### Card Count by Product Class
+
+| Column | Description |
+|--------|-------------|
+| `total_cards` | Total number of cards linked to the customer (all statuses) |
+| `active_credit_cards` | Number of **credit** cards with active status |
+| `active_debit_cards` | Number of **debit** cards with active status |
+| `active_prepaid_cards` | Number of **prepaid** cards with active status |
+
+### Credit Exposure
+
+| Column | Description |
+|--------|-------------|
+| `total_credit_limit` | Sum of credit limits across all credit cards |
+| `total_credit_utilized` | Sum of utilized balances on credit cards |
+| `total_credit_available` | Sum of available credit on credit cards |
+
+### Prepaid Balances
+
+| Column | Description |
+|--------|-------------|
+| `total_prepaid_balance` | Sum of balances on prepaid cards |
+
+### Activity and Dates
+
+| Column | Description |
+|--------|-------------|
+| `last_card_used_at` | Date/time of the last use of any of the customer's cards |
+| `onboarded_at` | Customer onboarding/registration date |
+| `last_login_at` | Date/time of the customer's last login |
 
 ---
 
-## Regras de Negócio
+## Product Classes Considered
 
-1. **Contagem de cartões ativos**: apenas cartões com `status = 'ACTIVE'` são contabilizados nas colunas segmentadas por classe de produto. A coluna `totalcards` considera todos os cartões independentemente de status.
-2. **Exposição de crédito**: calculada exclusivamente para cartões da classe `CREDIT`, sem filtro de status — ou seja, inclui cartões de crédito bloqueados ou cancelados que ainda possuam saldo.
-3. **Saldo pré-pago**: agregado para todos os cartões da classe `PREPAID`, também sem filtro de status.
-4. **Tratamento de nulos**: as colunas financeiras utilizam `COALESCE(..., 0)` para garantir que clientes sem cartões da respectiva classe retornem valor zero em vez de nulo.
+| Class | Description |
+|-------|-------------|
+| `CREDIT` | Credit card |
+| `DEBIT` | Debit card |
+| `PREPAID` | Prepaid card |
+
+---
+
+## Business Rules
+
+1. **Active card count**: only cards with `status = 'ACTIVE'` are counted in the columns segmented by product class. The `total_cards` column counts all cards regardless of status.
+2. **Credit exposure**: calculated exclusively for `CREDIT` class cards, without a status filter — meaning it includes blocked or cancelled credit cards that still carry a balance.
+3. **Prepaid balance**: aggregated for all `PREPAID` class cards, also without a status filter.
+4. **Null handling**: financial columns use `COALESCE(..., 0)` to ensure customers without cards of the respective class return zero instead of null.
 
 ---
 
 ## Insights
 
-- A view fornece uma **visão 360° do portfólio de cartões** de cada cliente, sendo uma fonte centralizada para dashboards de CRM e relatórios de risco.
-- A inclusão de `creditscore` e `incomerange` junto com a exposição de crédito permite análises de **concentração de risco** e **adequação de limite** diretamente a partir desta view.
-- A comparação entre `totalcreditlimit` e `totalcreditutilized` viabiliza o cálculo da **taxa de utilização de crédito** (utilization rate), métrica fundamental para gestão de risco.
-- A presença de `kycstatus` permite filtrar rapidamente clientes com pendências regulatórias que possuam exposição de crédito ativa.
-- As colunas `lastcardusedat` e `lastloginat` possibilitam identificar clientes **inativos** ou com risco de churn, apoiando campanhas de retenção.
-- Cartões de crédito inativos, bloqueados ou cancelados **são incluídos** nos totais de exposição financeira, o que é relevante para cenários de cobrança e provisionamento.
-- Não há segmentação de métricas financeiras para cartões de **débito**, indicando que esses cartões não possuem saldo ou limite gerenciado neste modelo.
+- The view provides a **360° view of each customer's card portfolio**, serving as a centralized source for CRM dashboards and risk reports.
+- The inclusion of `credit_score` and `income_range` alongside credit exposure enables **risk concentration** and **limit adequacy** analysis directly from this view.
+- The comparison between `total_credit_limit` and `total_credit_utilized` enables the calculation of the **credit utilization rate**, a fundamental metric for risk management.
+- The presence of `kyc_status` allows quickly filtering customers with pending regulatory issues who have active credit exposure.
+- The `last_card_used_at` and `last_login_at` columns enable identifying **inactive** customers or those at churn risk, supporting retention campaigns.
+- Inactive, blocked, or cancelled credit cards **are included** in the financial exposure totals, which is relevant for collection and provisioning scenarios.
+- There is no financial metric segmentation for **debit** cards, indicating that these cards do not carry a managed balance or limit in this model.

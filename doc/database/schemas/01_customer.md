@@ -1,42 +1,42 @@
-# Documentação: Schema `customer`
+# Documentation: Schema `customer`
 
-## Visão Geral
+## Overview
 
-| Atributo       | Detalhe                                                                 |
+| Attribute      | Detail                                                                  |
 |----------------|-------------------------------------------------------------------------|
-| **Nome**       | `customer`                                                              |
-| **Aplicação**  | NovoCard                                                                |
-| **Tipo**       | Estrutura de Dados (Schema)                                             |
-| **Descrição**  | Armazena todas as informações de identidade e contato dos clientes.     |
+| **Name**       | `customer`                                                              |
+| **Application**| NovoCard                                                                |
+| **Type**       | Data Structure (Schema)                                                 |
+| **Description**| Holds all customer identity and contact information.                    |
 
-## Descrição
+## Description
 
-O schema `customer` é uma estrutura organizacional no banco de dados da aplicação **NovoCard**, destinada a agrupar todos os objetos (tabelas, views, procedures, etc.) relacionados aos dados cadastrais dos clientes.
+The `customer` schema is an organizational namespace in the **NovoCard** application database, grouping all objects (tables, views, procedures, etc.) related to customer registration data.
 
-Os clientes registrados neste schema podem possuir múltiplos cartões associados a diferentes tipos de produto.
+Customers registered in this schema can hold multiple cards associated with different product types.
 
-## Detalhes Técnicos
+## Technical Details
 
-| Aspecto                  | Descrição                                                                                      |
-|--------------------------|------------------------------------------------------------------------------------------------|
-| **Operação**             | Criação condicional do schema `customer`                                                       |
-| **Verificação prévia**   | Consulta `sys.schemas` para verificar se o schema já existe antes de tentar criá-lo            |
-| **Comportamento**        | O schema só é criado caso ainda não exista no banco de dados (criação idempotente)             |
+| Aspect                  | Description                                                                                       |
+|-------------------------|---------------------------------------------------------------------------------------------------|
+| **Operation**           | Conditional creation of the `customer` schema                                                     |
+| **Pre-check**           | Queries `sys.schemas` to verify whether the schema already exists before attempting to create it  |
+| **Behavior**            | The schema is only created if it does not yet exist in the database (idempotent creation)         |
 
-## Fluxo do Processo
+## Process Flow
 
 ```mermaid
 graph TD
-    A[Inicio] --> B{Schema customer ja existe em sys.schemas?}
-    B -- Sim --> C[Nenhuma acao executada]
-    B -- Nao --> D[Executa CREATE SCHEMA customer]
-    C --> E[Fim]
-    D --> E[Fim]
+    A[Start] --> B{Does customer schema already exist in sys.schemas?}
+    B -- Yes --> C[No action taken]
+    B -- No --> D[Execute CREATE SCHEMA customer]
+    C --> E[End]
+    D --> E[End]
 ```
 
 ## Insights
 
-- Este script é **idempotente**, ou seja, pode ser executado múltiplas vezes sem causar erro, pois verifica a existência do schema antes de criá-lo.
-- O schema `customer` serve como **namespace lógico** para segregar objetos de banco de dados relacionados a clientes, promovendo organização e facilitando o controle de permissões de acesso.
-- A aplicação **NovoCard** sugere um sistema de gestão de cartões, onde o domínio de clientes é um dos pilares centrais do modelo de dados.
-- O relacionamento indicado entre clientes e múltiplos cartões de diferentes tipos de produto sugere que tabelas futuras dentro deste schema terão vínculos com estruturas de produtos e cartões.
+- This script is **idempotent** — it can be executed multiple times without error, because it checks for the schema's existence before creating it.
+- The `customer` schema serves as a **logical namespace** for segregating customer-related database objects, promoting organization and simplifying access-permission management.
+- The **NovoCard** application is a card management system where the customer domain is one of the central pillars of the data model.
+- The indicated relationship between customers and multiple cards of different product types implies that future tables within this schema will have links to product and card structures.

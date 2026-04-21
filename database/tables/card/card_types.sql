@@ -15,7 +15,7 @@ CREATE TABLE card.card_types (
                                 CONSTRAINT chk_card_types_class CHECK (product_class IN (N'CREDIT', N'DEBIT', N'PREPAID')),
     network                 NVARCHAR(20)        NOT NULL
                                 CONSTRAINT chk_card_types_network CHECK (network IN (
-                                    N'VISA', N'MASTERCARD', N'ELO', N'AMEX', N'HIPERCARD'
+                                    N'VISA', N'MASTERCARD', N'DISCOVER', N'AMEX', N'UNIONPAY'
                                 )),
     tier                    NVARCHAR(20)        NOT NULL DEFAULT N'STANDARD'
                                 CONSTRAINT chk_card_types_tier CHECK (tier IN (
@@ -41,7 +41,7 @@ INSERT INTO card.card_types (type_name, product_class, network, tier, annual_fee
     (N'NOVOCARD_CREDIT_GOLD',       N'CREDIT',  N'MASTERCARD', N'GOLD',     299.90, N'Gold credit card with travel benefits'),
     (N'NOVOCARD_CREDIT_PLATINUM',   N'CREDIT',  N'VISA',       N'PLATINUM', 599.90, N'Platinum card with concierge and lounge access'),
     (N'NOVOCARD_CREDIT_BLACK',      N'CREDIT',  N'MASTERCARD', N'BLACK',    0.00,   N'Invite-only Black card with unlimited benefits'),
-    (N'NOVOCARD_PREPAID_GIFT',      N'PREPAID', N'ELO',        N'STANDARD', 0.00,   N'Single-use prepaid gift card'),
+    (N'NOVOCARD_PREPAID_GIFT',      N'PREPAID', N'DISCOVER',   N'STANDARD', 0.00,   N'Single-use prepaid gift card'),
     (N'NOVOCARD_PREPAID_TRAVEL',    N'PREPAID', N'VISA',       N'STANDARD', 19.90,  N'Reloadable multi-currency travel prepaid card'),
     (N'NOVOCARD_PREPAID_CORPORATE', N'PREPAID', N'MASTERCARD', N'STANDARD', 0.00,   N'Corporate expense prepaid card managed by employer');
 GO

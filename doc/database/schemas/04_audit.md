@@ -1,63 +1,63 @@
-# Esquema de Auditoria — NovoCard
+# Audit Schema — NovoCard
 
-## Visão Geral
+## Overview
 
-Este artefato define a estrutura de dados do esquema **audit**, responsável por centralizar a trilha de auditoria da aplicação **NovoCard**. Todas as mutações significativas realizadas nos esquemas de clientes, cartões e designs são registradas neste esquema, atendendo a requisitos de **conformidade regulatória**, **resolução de disputas** e **análise forense**.
-
----
-
-## Estrutura de Dados
-
-### Esquema `audit`
-
-O esquema `audit` é criado de forma condicional (somente se ainda não existir), garantindo idempotência na execução do script.
+This artifact defines the data structure of the **audit** schema, responsible for centralizing the audit trail of the **NovoCard** application. All significant mutations performed in the customer, card, and design schemas are recorded here to meet requirements for **regulatory compliance**, **dispute resolution**, and **forensic analysis**.
 
 ---
 
-### Tabela `audit.auditlog`
+## Data Structure
 
-Registro imutável de todas as operações de **INSERT**, **UPDATE** e **DELETE** realizadas nas tabelas de negócio do NovoCard. Os valores anteriores e posteriores à alteração são armazenados em formato JSON, permitindo rastreabilidade completa das mudanças.
+### Schema `audit`
 
-#### Colunas
+The `audit` schema is created conditionally (only if it does not already exist), ensuring idempotent script execution.
 
-| Coluna | Tipo | Nulável | Descrição |
-|---|---|---|---|
-| `logid` | `BIGINT IDENTITY(1,1)` | Não | Identificador único sequencial do registro de auditoria (chave primária) |
-| `schemaname` | `NVARCHAR(63)` | Não | Nome do esquema da tabela afetada |
-| `tablename` | `NVARCHAR(63)` | Não | Nome da tabela afetada |
-| `operation` | `NVARCHAR(10)` | Não | Tipo da operação realizada (restrito a `INSERT`, `UPDATE` ou `DELETE`) |
-| `recordid` | `NVARCHAR(100)` | Não | Chave primária do registro afetado, convertida para texto para compatibilidade entre tabelas |
-| `oldvalues` | `NVARCHAR(MAX)` | Sim | Snapshot JSON dos valores **antes** da alteração |
-| `newvalues` | `NVARCHAR(MAX)` | Sim | Snapshot JSON dos valores **após** a alteração |
-| `changedby` | `NVARCHAR(100)` | Não | Usuário responsável pela alteração (padrão: usuário de sistema da sessão) |
-| `changedat` | `DATETIMEOFFSET` | Não | Data e hora da alteração com fuso horário (padrão: momento atual) |
-| `ipaddress` | `VARCHAR(45)` | Sim | Endereço IP de origem (suporte a IPv4 e IPv6) |
-| `sessionid` | `NVARCHAR(100)` | Sim | Identificador da sessão que originou a alteração |
+---
 
-#### Restrições
+### Table `audit.audit_log`
 
-| Tipo | Nome | Detalhe |
-|---|---|---|
-| Chave Primária | `pk_auditlog` | Coluna `logid` |
-| Check | `chk_audit_operation` | `operation` deve ser `INSERT`, `UPDATE` ou `DELETE` |
+Immutable record of every **INSERT**, **UPDATE**, and **DELETE** operation performed on NovoCard business tables. Values before and after each change are stored as JSON, enabling complete change traceability.
 
-#### Índices
+#### Columns
 
-| Nome | Colunas | Observação |
-|---|---|---|
-| `idx_auditlog_table` | `schemaname`, `tablename` | Otimiza consultas filtradas por tabela de origem |
-| `idx_auditlog_record` | `recordid` | Otimiza buscas pelo registro específico afetado |
-| `idx_auditlog_changedat` | `changedat DESC` | Otimiza consultas cronológicas (mais recentes primeiro) |
-| `idx_auditlog_operation` | `operation` | Otimiza filtros por tipo de operação |
+| Column        | Type                   | Nullable | Description                                                                                         |
+|---------------|------------------------|----------|-----------------------------------------------------------------------------------------------------|
+| `log_id`      | `BIGINT IDENTITY(1,1)` | No       | Unique sequential identifier for the audit record (primary key)                                     |
+| `schema_name` | `NVARCHAR(63)`         | No       | Name of the schema of the affected table                                                            |
+| `table_name`  | `NVARCHAR(63)`         | No       | Name of the affected table                                                                          |
+| `operation`   | `NVARCHAR(10)`         | No       | Type of operation performed (restricted to `INSERT`, `UPDATE`, or `DELETE`)                         |
+| `record_id`   | `NVARCHAR(100)`        | No       | Primary key of the affected row, cast to text for cross-table compatibility                         |
+| `old_values`  | `NVARCHAR(MAX)`        | Yes      | JSON snapshot of values **before** the change (NULL for INSERT)                                     |
+| `new_values`  | `NVARCHAR(MAX)`        | Yes      | JSON snapshot of values **after** the change (NULL for DELETE)                                      |
+| `changed_by`  | `NVARCHAR(100)`        | No       | User responsible for the change (default: current session system user)                              |
+| `changed_at`  | `DATETIMEOFFSET`       | No       | Date and time of the change with time zone (default: current moment)                                |
+| `ip_address`  | `VARCHAR(45)`          | Yes      | Source IP address (supports IPv4 and IPv6)                                                          |
+| `session_id`  | `NVARCHAR(100)`        | Yes      | Identifier of the session that originated the change                                                |
+
+#### Constraints
+
+| Type        | Name                   | Detail                                         |
+|-------------|------------------------|------------------------------------------------|
+| Primary Key | `pk_audit_log`         | Column `log_id`                                |
+| Check       | `chk_audit_operation`  | `operation` must be `INSERT`, `UPDATE`, or `DELETE` |
+
+#### Indexes
+
+| Name                     | Columns                     | Note                                              |
+|--------------------------|-----------------------------|---------------------------------------------------|
+| `idx_audit_log_table`    | `schema_name`, `table_name` | Optimizes queries filtered by source table        |
+| `idx_audit_log_record`   | `record_id`                 | Optimizes lookups by affected record              |
+| `idx_audit_log_changed_at` | `changed_at DESC`         | Optimizes chronological queries (most recent first) |
+| `idx_audit_log_operation`| `operation`                 | Optimizes filters by operation type               |
 
 ---
 
 ## Insights
 
-- **Imutabilidade por design**: A tabela é projetada como um log somente de inserção (*append-only*). Não há mecanismos de atualização ou exclusão previstos, reforçando a integridade da trilha de auditoria.
-- **Compatibilidade entre tabelas**: O uso de `NVARCHAR(100)` para `recordid` permite registrar chaves primárias de diferentes tipos (inteiros, GUIDs, compostas concatenadas) em uma única tabela centralizada.
-- **Armazenamento JSON**: A escolha de `NVARCHAR(MAX)` com snapshots JSON para `oldvalues` e `newvalues` oferece flexibilidade para auditar tabelas com estruturas distintas sem necessidade de colunas específicas por entidade.
-- **Rastreabilidade completa**: A combinação de `changedby`, `ipaddress` e `sessionid` permite identificar não apenas **quem** realizou a alteração, mas também **de onde** e em qual **contexto de sessão**.
-- **Criação idempotente**: Tanto o esquema quanto a tabela utilizam verificações de existência prévia, permitindo que o script seja executado múltiplas vezes sem erros.
-- **Cobertura transversal**: O esquema atende a múltiplos domínios da aplicação (clientes, cartões e designs), consolidando a auditoria em um único ponto de consulta.
-- **Suporte a conformidade**: A estrutura é adequada para atender requisitos regulatórios como PCI-DSS e LGPD, que exigem rastreamento detalhado de acessos e alterações em dados sensíveis.
+- **Immutability by design**: The table is designed as an append-only log. No update or delete mechanisms are provided, reinforcing the integrity of the audit trail.
+- **Cross-table compatibility**: Using `NVARCHAR(100)` for `record_id` allows primary keys of different types (integers, GUIDs, concatenated composites) to be recorded in a single centralized table.
+- **JSON storage**: Choosing `NVARCHAR(MAX)` with JSON snapshots for `old_values` and `new_values` offers flexibility to audit tables with distinct structures without requiring entity-specific columns.
+- **Complete traceability**: The combination of `changed_by`, `ip_address`, and `session_id` identifies not only **who** made the change, but also **from where** and in what **session context**.
+- **Idempotent creation**: Both the schema and the table use existence checks, allowing the script to be executed multiple times without errors.
+- **Cross-domain coverage**: The schema serves multiple application domains (customers, cards, and designs), consolidating auditing into a single query point.
+- **Compliance support**: The structure meets common regulatory requirements such as PCI-DSS, which mandate detailed tracking of access and changes to sensitive data.

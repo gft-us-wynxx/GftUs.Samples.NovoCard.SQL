@@ -136,7 +136,7 @@ BEGIN
         authorized_at, posted_at
     ) VALUES (
         @p_transaction_id, @p_card_id, @v_account_id, @p_authorization_code,
-        @p_transaction_type, @p_amount, N'BRL',
+        @p_transaction_type, @p_amount, N'USD',
         @p_merchant_name, @p_merchant_id, @p_merchant_category_code,
         @v_effective_status, @v_decline_reason, @p_is_online, @p_is_international,
         @p_is_contactless, @p_installments,

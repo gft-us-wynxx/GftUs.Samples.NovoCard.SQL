@@ -69,7 +69,7 @@ database/
 ### card
 | Table | Description |
 |-------|-------------|
-| `card_types` | Product catalog (CREDIT / DEBIT / PREPAID combinations) |
+| `card_types` | Product catalog (CREDIT / DEBIT / PREPAID) with networks VISA / MASTERCARD / DISCOVER / AMEX / UNIONPAY |
 | `cards` | Issued cards — physical and virtual — with lifecycle status |
 | `card_accounts` | Financial account state: balances, credit limits, available funds |
 | `card_limits` | Per-card velocity controls for spending and withdrawals |

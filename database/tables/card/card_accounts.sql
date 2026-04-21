@@ -12,7 +12,7 @@ CREATE TABLE card.card_accounts (
     account_id          UNIQUEIDENTIFIER    NOT NULL CONSTRAINT pk_card_accounts PRIMARY KEY DEFAULT NEWID(),
     card_id             UNIQUEIDENTIFIER    NOT NULL CONSTRAINT uq_card_accounts_card UNIQUE
                             REFERENCES card.cards (card_id) ON DELETE CASCADE,
-    currency            NCHAR(3)            NOT NULL DEFAULT N'BRL',
+    currency            NCHAR(3)            NOT NULL DEFAULT N'USD',
     balance             DECIMAL(15, 2)      NOT NULL DEFAULT 0.00,
     credit_limit        DECIMAL(15, 2)      NOT NULL DEFAULT 0.00,
     -- Real-time spendable amount = credit_limit - utilized - pending_amount

@@ -9,7 +9,7 @@
 -- Notes:
 --   ISO 18245 Merchant Category Code (MCC) used for spending analytics and limit rules.
 --   original_amount is the transaction amount in the merchant currency before FX conversion (NULL for domestic).
---   installments: number of installments for Brazilian parcelamento (1 = no installments).
+--   installments: number of installments for a deferred payment plan (1 = single payment).
 --   AUTHORIZED: hold placed. POSTED: cleared and settled. REVERSED: full reversal before posting.
 -- =============================================================================
 
@@ -35,7 +35,7 @@ CREATE TABLE card.transactions (
     amount                  DECIMAL(15, 2)      NOT NULL,
     original_amount         DECIMAL(15, 2)      NULL,
     original_currency       NCHAR(3)            NULL,
-    billing_currency        NCHAR(3)            NOT NULL DEFAULT N'BRL',
+    billing_currency        NCHAR(3)            NOT NULL DEFAULT N'USD',
     exchange_rate           DECIMAL(12, 6)      NULL,
 
     -- Merchant information

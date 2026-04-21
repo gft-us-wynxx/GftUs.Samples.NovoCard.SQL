@@ -1,103 +1,101 @@
+# card.vw_transaction_summary
 
+## Overview
 
-# card.vwtransactionsummary
+View that provides a **monthly spending summary per card**, aggregating information by transaction type and merchant category code (MCC). This structure feeds the **spending analysis dashboard** of the NovoCard app and the **batch statement generation process**.
 
-## Visão Geral
-
-View que fornece um **resumo mensal de gastos por cartão**, agregando informações por tipo de transação e categoria de estabelecimento comercial (MCC). Essa estrutura alimenta o **painel de análise de gastos** do aplicativo NovoCard e o **processo batch de geração de extratos**.
-
-**Aplicação:** NovoCard
+**Application:** NovoCard
 **Schema:** card
-**Tipo:** View (estrutura de dados derivada)
+**Type:** View (derived data structure)
 
 ---
 
-## Fontes de Dados
+## Data Sources
 
-| Tabela | Alias | Descrição |
+| Table | Alias | Description |
 |---|---|---|
-| `card.transactions` | `t` | Transações realizadas com cartões |
-| `card.cards` | `c` | Cadastro de cartões |
-| `card.cardtypes` | `ct` | Tipos/produtos de cartão |
+| `card.transactions` | `t` | Card transactions |
+| `card.cards` | `c` | Card registry |
+| `card.card_types` | `ct` | Card types/products |
 
-### Relacionamentos
+### Relationships
 
-| Origem | Destino | Condição |
+| Source | Destination | Condition |
 |---|---|---|
-| `card.transactions` | `card.cards` | `c.cardid = t.cardid` |
-| `card.cards` | `card.cardtypes` | `ct.cardtypeid = c.cardtypeid` |
+| `card.transactions` | `card.cards` | `c.card_id = t.card_id` |
+| `card.cards` | `card.card_types` | `ct.card_type_id = c.card_type_id` |
 
 ---
 
-## Filtros Aplicados
+## Applied Filters
 
-Somente transações com os seguintes status são consideradas:
+Only transactions with the following statuses are included:
 
-| Status | Descrição |
+| Status | Description |
 |---|---|
-| `POSTED` | Transações efetivadas |
-| `REVERSED` | Transações estornadas |
-| `DISPUTED` | Transações em disputa |
+| `POSTED` | Settled transactions |
+| `REVERSED` | Reversed/refunded transactions |
+| `DISPUTED` | Transactions under dispute |
 
 ---
 
-## Colunas Retornadas
+## Returned Columns
 
-### Identificação
+### Identification
 
-| Coluna | Descrição |
+| Column | Description |
 |---|---|
-| `cardid` | Identificador do cartão |
-| `customerid` | Identificador do cliente |
-| `maskedpan` | Número do cartão mascarado |
-| `lastfourdigits` | Últimos quatro dígitos do cartão |
-| `productclass` | Classe do produto (ex: Gold, Platinum) |
-| `network` | Bandeira do cartão |
+| `card_id` | Card identifier |
+| `customer_id` | Customer identifier |
+| `masked_pan` | Masked card number |
+| `last_four_digits` | Last four digits of the card |
+| `product_class` | Product class (e.g., Credit, Prepaid) |
+| `network` | Card network |
 
-### Dimensões de Agrupamento
+### Grouping Dimensions
 
-| Coluna | Descrição |
+| Column | Description |
 |---|---|
-| `statementmonth` | Primeiro dia do mês de referência (truncamento da data de autorização) |
-| `transactiontype` | Tipo da transação (ex: compra, saque) |
-| `merchantcategorycode` | Código de categoria do estabelecimento (MCC) |
-| `billingcurrency` | Moeda de faturamento |
+| `statement_month` | First day of the reference month (truncation of the authorization date) |
+| `transaction_type` | Transaction type (e.g., purchase, withdrawal) |
+| `merchant_category_code` | Merchant category code (MCC) |
+| `billing_currency` | Billing currency |
 
-### Métricas de Volume e Valor
+### Volume and Amount Metrics
 
-| Coluna | Descrição |
+| Column | Description |
 |---|---|
-| `transactioncount` | Quantidade total de transações |
-| `totalamount` | Valor total das transações |
-| `avgamount` | Valor médio por transação |
-| `maxsingletransaction` | Maior valor em uma única transação |
-| `firsttransactionat` | Data/hora da primeira transação no período |
-| `lasttransactionat` | Data/hora da última transação no período |
+| `transaction_count` | Total number of transactions |
+| `total_amount` | Total amount of transactions |
+| `avg_amount` | Average amount per transaction |
+| `max_single_transaction` | Highest amount in a single transaction |
+| `first_transaction_at` | Date/time of the first transaction in the period |
+| `last_transaction_at` | Date/time of the last transaction in the period |
 
-### Contadores por Modalidade
+### Channel Counters
 
-| Coluna | Descrição |
+| Column | Description |
 |---|---|
-| `onlinecount` | Quantidade de transações realizadas online |
-| `internationalcount` | Quantidade de transações internacionais |
-| `contactlesscount` | Quantidade de transações por aproximação (contactless) |
-| `reversalcount` | Quantidade de transações estornadas |
-| `disputecount` | Quantidade de transações em disputa |
+| `online_count` | Number of online transactions |
+| `international_count` | Number of international transactions |
+| `contactless_count` | Number of contactless transactions |
+| `reversal_count` | Number of reversed transactions |
+| `dispute_count` | Number of disputed transactions |
 
 ---
 
-## Granularidade
+## Granularity
 
-Cada linha da view representa a combinação única de:
+Each row in the view represents the unique combination of:
 
-**Cartão → Mês de referência → Tipo de transação → Categoria do estabelecimento → Moeda de faturamento**
+**Card → Reference month → Transaction type → Merchant category → Billing currency**
 
 ---
 
 ## Insights
 
-- A coluna `statementmonth` é calculada utilizando `DATEADD/DATEDIFF` para truncar a data ao primeiro dia do mês, garantindo compatibilidade ampla com diferentes versões do SQL Server.
-- Os contadores de modalidade (`onlinecount`, `internationalcount`, `contactlesscount`) permitem análises de comportamento de uso do cartão sem necessidade de consultar a tabela transacional de origem.
-- A inclusão de transações com status `REVERSED` e `DISPUTED` junto com `POSTED` possibilita que os consumidores da view calculem valores líquidos (total menos estornos e disputas) conforme a necessidade do relatório.
-- A presença de `reversalcount` e `disputecount` como colunas separadas viabiliza indicadores de qualidade operacional e risco por cartão/mês.
-- A view centraliza dados de três tabelas distintas, servindo como camada de abstração tanto para o dashboard em tempo real quanto para o batch de extratos, reduzindo duplicação de lógica de negócio.
+- The `statement_month` column is calculated using `DATEADD/DATEDIFF` to truncate the date to the first day of the month, ensuring broad compatibility across different SQL Server versions.
+- The channel counters (`online_count`, `international_count`, `contactless_count`) enable card usage behavior analysis without querying the source transaction table.
+- Including transactions with `REVERSED` and `DISPUTED` status alongside `POSTED` allows view consumers to calculate net amounts (total minus reversals and disputes) according to the report's needs.
+- The presence of `reversal_count` and `dispute_count` as separate columns enables operational quality and risk indicators per card/month.
+- The view centralizes data from three distinct tables, serving as an abstraction layer for both the real-time dashboard and the statement batch process, reducing business logic duplication.

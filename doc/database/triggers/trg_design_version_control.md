@@ -1,109 +1,107 @@
+# Card Design Version Control Triggers
 
+## Overview
 
-# Triggers de Controle de Versão de Design de Cartões
+This set of triggers belongs to the **NovoCard** application and operates on the `design` schema, implementing two fundamental business rules for managing card templates and designs:
 
-## Visão Geral
-
-Este conjunto de triggers pertence à aplicação **NovoCard** e atua sobre o schema `design`, implementando duas regras de negócio fundamentais para o gerenciamento de templates e designs de cartões:
-
-1. **Atualização automática de timestamp** em templates de design.
-2. **Garantia de design único corrente** por cartão.
+1. **Automatic timestamp update** on design templates.
+2. **Single current design guarantee** per card.
 
 ---
 
-## Objetos Envolvidos
+## Objects Involved
 
-| Tipo | Schema | Objeto | Trigger Associada |
-|------|--------|--------|-------------------|
-| Tabela | `design` | `designtemplates` | `trg_template_updated_at` |
-| Tabela | `design` | `carddesigns` | `trg_enforce_single_current_design` |
+| Type | Schema | Object | Associated Trigger |
+|------|--------|--------|--------------------|
+| Table | `design` | `design_templates` | `trg_template_updated_at` |
+| Table | `design` | `card_designs` | `trg_enforce_single_current_design` |
 
 ---
 
 ## Trigger 1 — `trg_template_updated_at`
 
-### Objetivo
+### Purpose
 
-Mantém a coluna `updated_at` da tabela `design.designtemplates` sempre atualizada com a data/hora corrente (incluindo fuso horário) sempre que qualquer campo do registro for modificado, **sem exigir que o chamador informe esse valor explicitamente**.
+Keeps the `updated_at` column of the `design.design_templates` table always up to date with the current date/time (including time zone) whenever any field in the record is modified, **without requiring the caller to explicitly provide this value**.
 
-### Comportamento
+### Behavior
 
-| Evento | Ação |
-|--------|------|
-| `AFTER UPDATE` em `designtemplates` | Atualiza `updated_at` com `SYSDATETIMEOFFSET()` para todas as linhas afetadas pelo `UPDATE` |
+| Event | Action |
+|-------|--------|
+| `AFTER UPDATE` on `design_templates` | Updates `updated_at` with `SYSDATETIMEOFFSET()` for all rows affected by the `UPDATE` |
 
-### Regra de Negócio
+### Business Rule
 
-> Todo template de design deve registrar automaticamente o momento exato de sua última modificação, garantindo rastreabilidade e auditoria sem depender da aplicação.
+> Every design template must automatically record the exact moment of its last modification, ensuring traceability and auditability without relying on the application layer.
 
 ---
 
 ## Trigger 2 — `trg_enforce_single_current_design`
 
-### Objetivo
+### Purpose
 
-Garante a invariante de negócio de que **apenas um design pode estar marcado como corrente (`is_current = 1`) por cartão** a qualquer momento. Quando um novo design é inserido ou atualizado com `is_current = 1`, todos os demais designs do mesmo cartão são automaticamente desativados.
+Enforces the business invariant that **only one design can be marked as current (`is_current = 1`) per card** at any given time. When a new design is inserted or updated with `is_current = 1`, all other designs for the same card are automatically deactivated.
 
-### Comportamento
+### Behavior
 
-| Evento | Condição | Ação |
-|--------|----------|------|
-| `AFTER INSERT` ou `AFTER UPDATE` em `carddesigns` | `is_current = 1` na linha inserida/atualizada | Define `is_current = 0` e preenche `replaced_at` com `SYSDATETIMEOFFSET()` em todos os **outros** designs do mesmo cartão que estavam correntes |
-| Qualquer evento | `TRIGGER_NESTLEVEL() > 1` (chamada recursiva) | Retorna imediatamente sem executar ação |
+| Event | Condition | Action |
+|-------|-----------|--------|
+| `AFTER INSERT` or `AFTER UPDATE` on `card_designs` | `is_current = 1` on the inserted/updated row | Sets `is_current = 0` and populates `replaced_at` with `SYSDATETIMEOFFSET()` on all **other** designs for the same card that were current |
+| Any event | `@@NESTLEVEL > 1` (recursive call) | Returns immediately without executing any action |
 
-### Mecanismo Anti-Recursão
+### Anti-Recursion Mechanism
 
-A trigger utiliza `TRIGGER_NESTLEVEL()` para detectar se está sendo disparada recursivamente (ou seja, quando o próprio `UPDATE` interno da trigger causa um novo disparo). Se o nível de aninhamento for maior que 1, a execução é interrompida imediatamente, evitando loops infinitos.
+The trigger uses `@@NESTLEVEL` to detect whether it is being fired recursively (i.e., when the trigger's own internal `UPDATE` causes a new firing). If the nesting level is greater than 1, execution stops immediately, preventing infinite loops.
 
-### Regra de Negócio
+### Business Rule
 
-> Cada cartão pode ter múltiplos designs ao longo do tempo, mas **somente um design pode ser o design vigente**. Ao promover um novo design como corrente, o sistema automaticamente aposenta o design anterior, registrando a data/hora da substituição.
+> Each card can have multiple designs over time, but **only one design can be the current design**. When promoting a new design as current, the system automatically retires the previous design, recording the date/time of replacement.
 
 ---
 
-## Fluxo de Processo
+## Process Flow
 
 ### Trigger `trg_template_updated_at`
 
 ```mermaid
 graph TD
-    A[UPDATE executado em designtemplates] --> B[Trigger disparada AFTER UPDATE]
-    B --> C[Atualiza updated_at com SYSDATETIMEOFFSET para linhas afetadas]
-    C --> D[Fim]
+    A[UPDATE executed on design_templates] --> B[Trigger fired AFTER UPDATE]
+    B --> C[Update updated_at with SYSDATETIMEOFFSET for affected rows]
+    C --> D[End]
 ```
 
 ### Trigger `trg_enforce_single_current_design`
 
 ```mermaid
 graph TD
-    A[INSERT ou UPDATE executado em carddesigns] --> B[Trigger disparada AFTER INSERT/UPDATE]
-    B --> C{TRIGGER_NESTLEVEL maior que 1?}
-    C -- Sim --> D[RETURN - Interrompe execucao para evitar recursao]
-    C -- Nao --> E{Linha inserida/atualizada tem is_current = 1?}
-    E -- Nao --> F[Nenhuma acao necessaria]
-    E -- Sim --> G[Identifica outros designs do mesmo cartao com is_current = 1]
-    G --> H[Define is_current = 0 e replaced_at = SYSDATETIMEOFFSET nos designs anteriores]
-    H --> I[Fim]
+    A[INSERT or UPDATE executed on card_designs] --> B[Trigger fired AFTER INSERT/UPDATE]
+    B --> C{@@NESTLEVEL greater than 1?}
+    C -- Yes --> D[RETURN - Stop execution to prevent recursion]
+    C -- No --> E{Inserted/updated row has is_current = 1?}
+    E -- No --> F[No action needed]
+    E -- Yes --> G[Identify other designs for the same card with is_current = 1]
+    G --> H[Set is_current = 0 and replaced_at = SYSDATETIMEOFFSET on previous designs]
+    H --> I[End]
     F --> I
     D --> I
 ```
 
 ---
 
-## Colunas Impactadas
+## Impacted Columns
 
-| Tabela | Coluna | Modificada por | Descrição |
-|--------|--------|----------------|-----------|
-| `designtemplates` | `updated_at` | `trg_template_updated_at` | Timestamp da última modificação do template |
-| `carddesigns` | `is_current` | `trg_enforce_single_current_design` | Indicador de design vigente (0 ou 1) |
-| `carddesigns` | `replaced_at` | `trg_enforce_single_current_design` | Data/hora em que o design deixou de ser o corrente |
+| Table | Column | Modified by | Description |
+|-------|--------|-------------|-------------|
+| `design_templates` | `updated_at` | `trg_template_updated_at` | Timestamp of the last template modification |
+| `card_designs` | `is_current` | `trg_enforce_single_current_design` | Current design indicator (0 or 1) |
+| `card_designs` | `replaced_at` | `trg_enforce_single_current_design` | Date/time when the design ceased to be current |
 
 ---
 
 ## Insights
 
-- A implementação da regra de design único corrente **no nível do banco de dados** garante integridade mesmo que múltiplas aplicações ou processos acessem a base simultaneamente, eliminando a dependência de lógica aplicacional para manter essa invariante.
-- O uso de `SYSDATETIMEOFFSET()` em vez de `GETDATE()` ou `SYSUTCDATETIME()` indica que a aplicação opera em contexto onde a **informação de fuso horário é relevante**, possivelmente atendendo a operações em múltiplas regiões geográficas.
-- O campo `replaced_at` cria um **histórico natural de versões** de design por cartão, permitindo consultas de auditoria sobre quando cada design foi substituído.
-- A estratégia de `TRIGGER_NESTLEVEL` é eficaz, porém deve-se ter atenção caso outras triggers sejam encadeadas sobre a mesma tabela, pois o nível de aninhamento seria incrementado mesmo em cenários não recursivos.
-- Não há índice ou constraint `UNIQUE` filtrada mencionada para reforçar a regra de unicidade de `is_current = 1` por cartão. Considerar a criação de um **índice único filtrado** (`WHERE is_current = 1`) como camada adicional de proteção seria uma boa prática complementar.
+- Implementing the single-current-design rule **at the database level** guarantees integrity even when multiple applications or processes access the database simultaneously, eliminating reliance on application logic to maintain this invariant.
+- The use of `SYSDATETIMEOFFSET()` instead of `GETDATE()` or `SYSUTCDATETIME()` indicates that the application operates in a context where **time zone information is relevant**, possibly serving operations across multiple geographic regions.
+- The `replaced_at` field creates a **natural version history** of designs per card, enabling audit queries about when each design was replaced.
+- The `@@NESTLEVEL` strategy is effective, but care should be taken if other triggers are chained on the same table, as the nesting level would be incremented even in non-recursive scenarios.
+- No filtered unique index or `UNIQUE` constraint is mentioned to reinforce the uniqueness rule of `is_current = 1` per card. Adding a **filtered unique index** (`WHERE is_current = 1`) as an additional protection layer would be a complementary best practice.

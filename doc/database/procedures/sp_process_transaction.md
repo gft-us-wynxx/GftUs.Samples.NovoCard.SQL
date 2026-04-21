@@ -1,71 +1,71 @@
-# Documentação: `card.spprocesstransaction`
+# Documentation: `card.sp_process_transaction`
 
-## Visão Geral
+## Overview
 
-| Atributo | Detalhe |
+| Attribute | Detail |
 |---|---|
-| **Aplicação** | NovoCard |
+| **Application** | NovoCard |
 | **Schema** | `card` |
-| **Tipo** | Stored Procedure |
-| **Finalidade** | Registrar autorizações, postagens e reversões de transações de cartão, aplicando validações de limites e atualizando saldos da conta vinculada |
-| **Moeda de Faturamento** | BRL (Real Brasileiro) |
+| **Type** | Stored Procedure |
+| **Purpose** | Record card transaction authorizations, postings, and reversals, applying limit validations and updating balances on the linked account |
+| **Billing Currency** | USD |
 
-A procedure é responsável pelo ciclo de vida de uma transação de cartão, desde a autorização até a efetivação (posting). Ela implementa uma cadeia de validações de segurança — status do cartão, limite por transação, limite diário, limite online e saldo disponível — antes de aceitar uma autorização. Caso qualquer validação falhe, a transação é automaticamente declinada com o motivo correspondente.
+The procedure manages the full card transaction lifecycle, from authorization through posting. It implements a chain of security validations — card status, single-transaction limit, daily limit, online limit, and available balance — before accepting an authorization. If any validation fails, the transaction is automatically declined with the corresponding reason.
 
 ---
 
-## Parâmetros
+## Parameters
 
-| Parâmetro | Tipo | Padrão | Direção | Descrição |
+| Parameter | Type | Default | Direction | Description |
 |---|---|---|---|---|
-| `@pcardid` | `UNIQUEIDENTIFIER` | — | Entrada | Identificador do cartão sendo utilizado |
-| `@pamount` | `DECIMAL(15,2)` | — | Entrada | Valor da transação na moeda de faturamento |
-| `@ptransactiontype` | `NVARCHAR(30)` | `PURCHASE` | Entrada | Tipo da transação (`PURCHASE`, `CASHWITHDRAWAL`, `BALANCELOAD`, etc.) |
-| `@pstatus` | `NVARCHAR(20)` | `AUTHORIZED` | Entrada | Status solicitado (`AUTHORIZED`, `POSTED`, `DECLINED`) |
-| `@pmerchantname` | `NVARCHAR(255)` | `NULL` | Entrada | Nome de exibição do estabelecimento |
-| `@pmerchantid` | `NVARCHAR(50)` | `NULL` | Entrada | Identificador do estabelecimento na adquirente |
-| `@pmerchantcategorycode` | `CHAR(4)` | `NULL` | Entrada | Código MCC (ISO 18245) do estabelecimento |
-| `@pauthorizationcode` | `NVARCHAR(20)` | `NULL` | Entrada | Código de autorização emitido pelo emissor |
-| `@pisonline` | `BIT` | `0` | Entrada | Indica se a transação é online (cartão não presente) |
-| `@pisinternational` | `BIT` | `0` | Entrada | Indica se a transação é internacional (cross-border) |
-| `@piscontactless` | `BIT` | `0` | Entrada | Indica se a transação foi realizada via NFC (contactless) |
-| `@pinstallments` | `SMALLINT` | `1` | Entrada | Número de parcelas (1 = à vista) |
-| `@ptransactionid` | `UNIQUEIDENTIFIER` | — | **Saída** | Retorna o identificador único da transação criada |
+| `@p_card_id` | `UNIQUEIDENTIFIER` | — | Input | Identifier of the card being used |
+| `@p_amount` | `DECIMAL(15,2)` | — | Input | Transaction amount in the billing currency |
+| `@p_transaction_type` | `NVARCHAR(30)` | `PURCHASE` | Input | Transaction type (`PURCHASE`, `CASH_WITHDRAWAL`, `BALANCE_LOAD`, etc.) |
+| `@p_status` | `NVARCHAR(20)` | `AUTHORIZED` | Input | Requested status (`AUTHORIZED`, `POSTED`, `DECLINED`) |
+| `@p_merchant_name` | `NVARCHAR(255)` | `NULL` | Input | Merchant display name |
+| `@p_merchant_id` | `NVARCHAR(50)` | `NULL` | Input | Merchant identifier at the acquirer |
+| `@p_merchant_category_code` | `CHAR(4)` | `NULL` | Input | Merchant MCC code (ISO 18245) |
+| `@p_authorization_code` | `NVARCHAR(20)` | `NULL` | Input | Authorization code issued by the issuer |
+| `@p_is_online` | `BIT` | `0` | Input | Indicates whether the transaction is online (card-not-present) |
+| `@p_is_international` | `BIT` | `0` | Input | Indicates whether the transaction is international (cross-border) |
+| `@p_is_contactless` | `BIT` | `0` | Input | Indicates whether the transaction was performed via NFC (contactless) |
+| `@p_installments` | `SMALLINT` | `1` | Input | Number of installments (1 = single payment) |
+| `@p_transaction_id` | `UNIQUEIDENTIFIER` | — | **Output** | Returns the unique identifier of the created transaction |
 
 ---
 
-## Tabelas Envolvidas
+## Tables Involved
 
-| Tabela | Operação | Finalidade |
+| Table | Operation | Purpose |
 |---|---|---|
-| `card.cards` | Leitura | Obter o status atual do cartão |
-| `card.cardaccounts` | Leitura / Atualização | Consultar saldo disponível e atualizar saldos após a transação |
-| `card.cardlimits` | Leitura | Consultar limites configurados para o cartão |
-| `card.transactions` | Leitura / Inserção | Calcular gasto diário acumulado e registrar a nova transação |
+| `card.cards` | Read | Obtain the current card status |
+| `card.card_accounts` | Read / Update | Query available balance and update balances after the transaction |
+| `card.card_limits` | Read | Query configured limits for the card |
+| `card.transactions` | Read / Insert | Calculate accumulated daily spend and record the new transaction |
 
 ---
 
-## Regras de Negócio
+## Business Rules
 
-### Validações de Autorização
+### Authorization Validations
 
-As validações abaixo são executadas **em sequência** apenas quando o status solicitado é `AUTHORIZED` e o tipo de transação é `PURCHASE`, `CASHADVANCE` ou `CASHWITHDRAWAL`. A primeira falha interrompe as verificações subsequentes e declina a transação.
+The validations below are executed **in sequence** only when the requested status is `AUTHORIZED` and the transaction type is `PURCHASE`, `CASH_ADVANCE`, or `CASH_WITHDRAWAL`. The first failure stops subsequent checks and declines the transaction.
 
-| # | Validação | Motivo de Recusa |
+| # | Validation | Decline Reason |
 |---|---|---|
-| 1 | O cartão deve estar com status **ACTIVE** | `CARDNOTACTIVE` |
-| 2 | O valor da transação não pode exceder o **limite por transação única** | `EXCEEDSSINGLETRANSACTIONLIMIT` |
-| 3 | O acumulado do dia (mesmo tipo) somado ao valor atual não pode exceder o **limite diário** | `EXCEEDSDAILYLIMIT` |
-| 4 | Para transações online, o valor não pode exceder o **limite de transação online** | `EXCEEDSONLINELIMIT` |
-| 5 | O valor deve ser menor ou igual ao **saldo disponível** da conta | `INSUFFICIENTFUNDS` |
+| 1 | The card must have **ACTIVE** status | `CARD_NOT_ACTIVE` |
+| 2 | The transaction amount cannot exceed the **single-transaction limit** | `EXCEEDS_SINGLE_TRANSACTION_LIMIT` |
+| 3 | The daily accumulated amount (same type) plus the current amount cannot exceed the **daily limit** | `EXCEEDS_DAILY_LIMIT` |
+| 4 | For online transactions, the amount cannot exceed the **online transaction limit** | `EXCEEDS_ONLINE_LIMIT` |
+| 5 | The amount must be less than or equal to the account's **available balance** | `INSUFFICIENT_FUNDS` |
 
-### Impacto nos Saldos da Conta
+### Impact on Account Balances
 
-| Status Efetivo | Saldo (`balance`) | Saldo Disponível (`availablebalance`) | Valor Pendente (`pendingamount`) |
+| Effective Status | Balance (`balance`) | Available Balance (`available_balance`) | Pending Amount (`pending_amount`) |
 |---|---|---|---|
-| `AUTHORIZED` | Sem alteração | **Reduzido** pelo valor da transação | **Incrementado** pelo valor da transação |
-| `POSTED` | **Reduzido** pelo valor da transação | **Reduzido** pelo valor da transação | Sem alteração |
-| `DECLINED` | Sem alteração | Sem alteração | Sem alteração |
+| `AUTHORIZED` | No change | **Reduced** by the transaction amount | **Incremented** by the transaction amount |
+| `POSTED` | **Reduced** by the transaction amount | **Reduced** by the transaction amount | No change |
+| `DECLINED` | No change | No change | No change |
 
 ---
 
@@ -73,58 +73,58 @@ As validações abaixo são executadas **em sequência** apenas quando o status 
 
 ```mermaid
 graph TD
-    A[Inicio: Receber parametros da transacao] --> B[Consultar cartao e conta vinculada]
-    B --> C{Cartao encontrado?}
-    C -- Nao --> D[Erro 51000: Card not found]
-    C -- Sim --> E{Status solicitado = AUTHORIZED?}
+    A[Start: Receive transaction parameters] --> B[Query card and linked account]
+    B --> C{Card found?}
+    C -- No --> D[Error 51000: Card not found]
+    C -- Yes --> E{Requested status = AUTHORIZED?}
 
-    E -- Nao --> L[Manter status solicitado]
-    E -- Sim --> F{Cartao esta ACTIVE?}
+    E -- No --> L[Keep requested status]
+    E -- Yes --> F{Card is ACTIVE?}
 
-    F -- Nao --> G[Declinar: CARDNOTACTIVE]
-    F -- Sim --> H{Tipo e PURCHASE, CASHADVANCE ou CASHWITHDRAWAL?}
+    F -- No --> G[Decline: CARD_NOT_ACTIVE]
+    F -- Yes --> H{Type is PURCHASE, CASH_ADVANCE or CASH_WITHDRAWAL?}
 
-    H -- Nao --> L
-    H -- Sim --> I{Valor excede limite por transacao unica?}
+    H -- No --> L
+    H -- Yes --> I{Amount exceeds single-transaction limit?}
 
-    I -- Sim --> I1[Declinar: EXCEEDSSINGLETRANSACTIONLIMIT]
-    I -- Nao --> J{Gasto diario + valor excede limite diario?}
+    I -- Yes --> I1[Decline: EXCEEDS_SINGLE_TRANSACTION_LIMIT]
+    I -- No --> J{Daily spend + amount exceeds daily limit?}
 
-    J -- Sim --> J1[Declinar: EXCEEDSDAILYLIMIT]
-    J -- Nao --> K{Transacao online e valor excede limite online?}
+    J -- Yes --> J1[Decline: EXCEEDS_DAILY_LIMIT]
+    J -- No --> K{Online transaction and amount exceeds online limit?}
 
-    K -- Sim --> K1[Declinar: EXCEEDSONLINELIMIT]
-    K -- Nao --> M{Valor excede saldo disponivel?}
+    K -- Yes --> K1[Decline: EXCEEDS_ONLINE_LIMIT]
+    K -- No --> M{Amount exceeds available balance?}
 
-    M -- Sim --> M1[Declinar: INSUFFICIENTFUNDS]
-    M -- Nao --> L
+    M -- Yes --> M1[Decline: INSUFFICIENT_FUNDS]
+    M -- No --> L
 
-    G --> N[Inserir registro na tabela transactions]
+    G --> N[Insert record in transactions table]
     I1 --> N
     J1 --> N
     K1 --> N
     M1 --> N
     L --> N
 
-    N --> O{Status efetivo?}
-    O -- AUTHORIZED --> P[Reduzir saldo disponivel e incrementar pendente]
-    O -- POSTED --> Q[Reduzir saldo e saldo disponivel]
-    O -- DECLINED --> R[Nenhuma atualizacao de saldo]
+    N --> O{Effective status?}
+    O -- AUTHORIZED --> P[Reduce available balance and increment pending]
+    O -- POSTED --> Q[Reduce balance and available balance]
+    O -- DECLINED --> R[No balance update]
 
-    P --> S[Retornar transactionid]
+    P --> S[Return transaction_id]
     Q --> S
     R --> S
-    S --> T[Fim]
+    S --> T[End]
 ```
 
 ---
 
 ## Insights
 
-- **Sem tratamento de transação explícito (BEGIN TRAN / COMMIT):** A procedure não gerencia uma transação de banco de dados explícita. Isso significa que, em caso de falha parcial (ex.: inserção bem-sucedida mas falha na atualização de saldo), pode haver inconsistência de dados. Recomenda-se encapsular as operações de escrita em uma transação explícita com `TRY/CATCH` e `ROLLBACK`.
-- **Reversão (REVERSED) mencionada mas não implementada:** A descrição da procedure menciona o cenário de reversão (`REVERSED`) que liberaria o hold de volta ao saldo disponível, porém o código atual não contém lógica para esse status. Transações com status `REVERSED` seriam apenas registradas sem qualquer ajuste de saldo.
-- **Status POSTED não converte hold existente:** Quando uma transação é postada diretamente, o saldo (`balance`) e o saldo disponível (`availablebalance`) são reduzidos, mas o `pendingamount` não é decrementado. Isso pode causar divergência se a transação tiver passado previamente pelo status `AUTHORIZED`.
-- **Hint OPTION(RECOMPILE):** A consulta inicial utiliza `OPTION(RECOMPILE)`, o que força a recompilação do plano de execução a cada chamada. Isso pode impactar a performance em cenários de alto volume transacional.
-- **Cálculo do limite diário é segmentado por tipo de transação:** O acumulado diário considera apenas transações do mesmo `transactiontype`, permitindo que um cartão atinja o limite diário independentemente para compras e saques, por exemplo.
-- **Parcelamento registrado mas sem lógica de divisão:** O número de parcelas (`installments`) é armazenado no registro da transação, mas não há lógica de divisão do valor em múltiplas parcelas ou criação de registros futuros de cobrança.
-- **Ausência de controle de concorrência explícito:** Embora a descrição mencione "update lock", o código não utiliza hints de bloqueio (`WITH (UPDLOCK)`) na consulta de saldo, o que pode permitir condições de corrida em autorizações simultâneas para o mesmo cartão.
+- **No explicit transaction management (BEGIN TRAN / COMMIT):** The procedure does not manage an explicit database transaction. This means that in the event of a partial failure (e.g., successful insert but failed balance update), data inconsistency may occur. It is recommended to wrap the write operations in an explicit transaction with `TRY/CATCH` and `ROLLBACK`.
+- **REVERSED status mentioned but not implemented:** The procedure description mentions a reversal scenario (`REVERSED`) that would release the hold back to the available balance, but the current code does not contain logic for this status. Transactions with `REVERSED` status would only be recorded without any balance adjustment.
+- **POSTED status does not convert existing hold:** When a transaction is posted directly, the `balance` and `available_balance` are reduced, but `pending_amount` is not decremented. This may cause divergence if the transaction previously went through `AUTHORIZED` status.
+- **OPTION(RECOMPILE) hint:** The initial query uses `OPTION(RECOMPILE)`, which forces execution plan recompilation on every call. This may impact performance in high transaction volume scenarios.
+- **Daily limit calculation is segmented by transaction type:** The daily accumulation considers only transactions of the same `transaction_type`, allowing a card to independently reach the daily limit for purchases and withdrawals, for example.
+- **Installments recorded but without split logic:** The number of installments (`installments`) is stored in the transaction record, but there is no logic to split the amount into multiple installments or create future billing records.
+- **No explicit concurrency control:** Although the description mentions "update lock", the code does not use locking hints (`WITH (UPDLOCK)`) when querying the balance, which may allow race conditions in simultaneous authorizations for the same card.

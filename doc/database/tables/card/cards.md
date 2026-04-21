@@ -1,121 +1,121 @@
-# Documentação: Tabela `card.cards`
+# Documentation: Table `card.cards`
 
-## Visão Geral
+## Overview
 
-| Atributo       | Valor                          |
+| Attribute      | Value                          |
 |----------------|--------------------------------|
-| **Aplicação**  | NovoCard                       |
+| **Application**| NovoCard                       |
 | **Schema**     | card                           |
-| **Objeto**     | cards                          |
-| **Tipo**       | Estrutura de Dados (Tabela)    |
+| **Object**     | cards                          |
+| **Type**       | Data Structure (Table)         |
 
-A tabela `card.cards` é a estrutura central para o registro de cartões emitidos. Cada registro representa um cartão único — físico ou virtual — pertencente a um cliente. A tabela gerencia todo o ciclo de vida do cartão, desde a emissão até o cancelamento, passando por ativação, bloqueios e expiração.
+The `card.cards` table is the central structure for the registry of issued cards. Each record represents a unique card — physical or virtual — belonging to a customer. The table manages the complete card lifecycle, from issuance through cancellation, covering activation, blocks, and expiry.
 
-Os números de cartão (PAN) são armazenados em formato mascarado (ex.: `4111 **** **** 1234`), em conformidade com o padrão **PCI-DSS**. O PAN completo é mantido exclusivamente em um cofre seguro externo.
-
----
-
-## Estrutura de Colunas
-
-### Identificação e Relacionamentos
-
-| Coluna         | Tipo               | Nulável | Descrição                                                                 |
-|----------------|--------------------|---------|---------------------------------------------------------------------------|
-| cardid         | UNIQUEIDENTIFIER   | Não     | Identificador único do cartão (PK, gerado automaticamente via `NEWID()`) |
-| customerid     | UNIQUEIDENTIFIER   | Não     | Referência ao cliente proprietário (`customer.customers`)                 |
-| cardtypeid     | INT                | Não     | Tipo do cartão (`card.cardtypes`)                                         |
-| designid       | UNIQUEIDENTIFIER   | Sim     | Design visual do cartão, atribuído após seleção                           |
-
-### Dados do Cartão (PCI-DSS)
-
-| Coluna          | Tipo           | Nulável | Descrição                                                        |
-|-----------------|----------------|---------|------------------------------------------------------------------|
-| maskedpan       | NVARCHAR(19)   | Não     | Número do cartão em formato mascarado                            |
-| cardholdername  | NVARCHAR(100)  | Não     | Nome impresso no cartão                                          |
-| expirymonth     | SMALLINT       | Não     | Mês de expiração (1–12)                                          |
-| expiryyear      | SMALLINT       | Não     | Ano de expiração (> 2020)                                        |
-| lastfourdigits  | Computada      | —       | Últimos 4 dígitos do PAN (persistida, derivada de `maskedpan`)   |
-| expiresat       | Computada      | —       | Data de expiração como DATETIMEOFFSET (1º dia do mês, UTC)       |
-
-### Formato e Capacidades
-
-| Coluna           | Tipo          | Padrão     | Descrição                                                    |
-|------------------|---------------|------------|--------------------------------------------------------------|
-| cardformat       | NVARCHAR(10)  | PHYSICAL   | Formato do cartão: PHYSICAL, VIRTUAL ou BOTH                 |
-| iscontactless    | BIT           | 1 (Sim)    | Habilitado para pagamento por aproximação                    |
-| isonlineenabled  | BIT           | 1 (Sim)    | Habilitado para compras online                               |
-| isinternational  | BIT           | 0 (Não)    | Habilitado para uso internacional                            |
-
-### Ciclo de Vida
-
-| Coluna              | Tipo              | Descrição                                              |
-|---------------------|-------------------|--------------------------------------------------------|
-| status              | NVARCHAR(30)      | Estado atual do cartão (ver tabela de status abaixo)   |
-| issuedat            | DATETIMEOFFSET    | Data/hora de emissão                                   |
-| activatedat         | DATETIMEOFFSET    | Data/hora de ativação                                  |
-| lastusedat          | DATETIMEOFFSET    | Data/hora do último uso registrado                     |
-| cancelledat         | DATETIMEOFFSET    | Data/hora do cancelamento                              |
-| cancellationreason  | NVARCHAR(255)     | Motivo do cancelamento                                 |
-| createdat           | DATETIMEOFFSET    | Data/hora de criação do registro                       |
-| updatedat           | DATETIMEOFFSET    | Data/hora da última atualização do registro            |
+Card numbers (PAN) are stored in masked format (e.g., `4111 **** **** 1234`), in compliance with **PCI-DSS** standards. The full PAN is maintained exclusively in an external secure vault.
 
 ---
 
-## Status do Cartão
+## Column Structure
 
-| Status              | Descrição                                                    |
-|---------------------|--------------------------------------------------------------|
-| PENDINGACTIVATION   | Cartão emitido, aguardando ativação pelo cliente             |
-| ACTIVE              | Cartão ativo e disponível para uso                           |
-| BLOCKEDTEMPORARY    | Bloqueio temporário iniciado pelo cliente                    |
-| BLOCKEDFRAUD        | Bloqueio por suspeita de fraude (sistema ou analista)        |
-| EXPIRED             | Cartão expirado                                              |
-| CANCELLED           | Cartão cancelado definitivamente                             |
-| LOST                | Cartão reportado como perdido                                |
-| STOLEN              | Cartão reportado como roubado                                |
+### Identification and Relationships
+
+| Column         | Type               | Nullable | Description                                                                         |
+|----------------|--------------------|----------|-------------------------------------------------------------------------------------|
+| `card_id`      | UNIQUEIDENTIFIER   | No       | Unique card identifier (PK, auto-generated via `NEWID()`)                           |
+| `customer_id`  | UNIQUEIDENTIFIER   | No       | Reference to the owning customer (`customer.customers`)                             |
+| `card_type_id` | INT                | No       | Card type (`card.card_types`)                                                       |
+| `design_id`    | UNIQUEIDENTIFIER   | Yes      | Visual design of the card, assigned after design selection                          |
+
+### Card Data (PCI-DSS)
+
+| Column            | Type           | Nullable | Description                                                        |
+|-------------------|----------------|----------|--------------------------------------------------------------------|
+| `masked_pan`      | NVARCHAR(19)   | No       | Card number in masked format                                       |
+| `card_holder_name`| NVARCHAR(100)  | No       | Name printed on the card                                           |
+| `expiry_month`    | SMALLINT       | No       | Expiry month (1–12)                                                |
+| `expiry_year`     | SMALLINT       | No       | Expiry year (> 2020)                                               |
+| `last_four_digits`| Computed       | —        | Last 4 digits of the PAN (persisted, derived from `masked_pan`)   |
+| `expires_at`      | Computed       | —        | Expiry date as DATETIMEOFFSET (1st day of the month, UTC)          |
+
+### Format and Capabilities
+
+| Column            | Type          | Default    | Description                                                    |
+|-------------------|---------------|------------|----------------------------------------------------------------|
+| `card_format`     | NVARCHAR(10)  | PHYSICAL   | Card format: PHYSICAL, VIRTUAL, or BOTH                        |
+| `is_contactless`  | BIT           | 1 (Yes)    | Enabled for contactless/NFC payment                            |
+| `is_online_enabled`| BIT          | 1 (Yes)    | Enabled for online purchases                                   |
+| `is_international`| BIT           | 0 (No)     | Enabled for international use                                  |
+
+### Lifecycle
+
+| Column               | Type              | Description                                              |
+|----------------------|-------------------|----------------------------------------------------------|
+| `status`             | NVARCHAR(30)      | Current card status (see status table below)             |
+| `issued_at`          | DATETIMEOFFSET    | Issuance date/time                                       |
+| `activated_at`       | DATETIMEOFFSET    | Activation date/time                                     |
+| `last_used_at`       | DATETIMEOFFSET    | Last recorded use date/time                              |
+| `cancelled_at`       | DATETIMEOFFSET    | Cancellation date/time                                   |
+| `cancellation_reason`| NVARCHAR(255)     | Reason for cancellation                                  |
+| `created_at`         | DATETIMEOFFSET    | Record creation timestamp                                |
+| `updated_at`         | DATETIMEOFFSET    | Last update timestamp                                    |
 
 ---
 
-## Índices
+## Card Status
 
-| Índice                    | Coluna(s)        | Observação                              |
-|---------------------------|------------------|-----------------------------------------|
-| pkcards (PK)             | cardid           | Chave primária clustered                |
-| idxcardscustomerid       | customerid       | Busca por cliente                       |
-| idxcardscardtypeid       | cardtypeid       | Busca por tipo de cartão               |
-| idxcardsstatus           | status           | Filtro por estado do ciclo de vida      |
-| idxcardslastfour         | lastfourdigits   | Busca pelos últimos 4 dígitos           |
-| idxcardsexpiresat        | expiresat        | Consultas de expiração                  |
-| idxcardsissuedat         | issuedat (DESC)  | Consultas por data de emissão recente   |
-
----
-
-## Relacionamentos (Chaves Estrangeiras)
-
-| Constraint            | Tabela Referenciada       | Coluna Referenciada |
-|-----------------------|---------------------------|---------------------|
-| fkcardscustomer       | customer.customers        | customerid          |
-| fkcardscardtype       | card.cardtypes            | cardtypeid          |
+| Status               | Description                                                    |
+|----------------------|----------------------------------------------------------------|
+| `PENDING_ACTIVATION` | Card issued, awaiting customer activation                      |
+| `ACTIVE`             | Card active and available for use                              |
+| `BLOCKED_TEMPORARY`  | Temporary block initiated by the customer                      |
+| `BLOCKED_FRAUD`      | Block due to suspected fraud (system or analyst)               |
+| `EXPIRED`            | Card has expired                                               |
+| `CANCELLED`          | Card permanently cancelled                                     |
+| `LOST`               | Card reported as lost                                          |
+| `STOLEN`             | Card reported as stolen                                        |
 
 ---
 
-## Regras de Negócio (Constraints)
+## Indexes
 
-| Constraint              | Regra                                                                 |
+| Index                  | Column(s)         | Note                                    |
+|------------------------|-------------------|-----------------------------------------|
+| `pk_cards` (PK)        | `card_id`         | Clustered primary key                   |
+| `idx_cards_customer_id`| `customer_id`     | Lookup by customer                      |
+| `idx_cards_card_type_id`| `card_type_id`   | Lookup by card type                     |
+| `idx_cards_status`     | `status`          | Filter by lifecycle state               |
+| `idx_cards_last_four`  | `last_four_digits`| Lookup by last four digits              |
+| `idx_cards_expires_at` | `expires_at`      | Expiry queries                          |
+| `idx_cards_issued_at`  | `issued_at` (DESC)| Queries by most recent issuance date    |
+
+---
+
+## Relationships (Foreign Keys)
+
+| Constraint             | Referenced Table          | Referenced Column |
+|------------------------|---------------------------|-------------------|
+| `fk_cards_customer`    | `customer.customers`      | `customer_id`     |
+| `fk_cards_card_type`   | `card.card_types`         | `card_type_id`    |
+
+---
+
+## Business Rules (Constraints)
+
+| Constraint              | Rule                                                                  |
 |-------------------------|-----------------------------------------------------------------------|
-| chkcardsexpirymonth     | Mês de expiração entre 1 e 12                                         |
-| chkcardsexpiryyear      | Ano de expiração superior a 2020                                      |
-| chkcardsformat          | Formato deve ser PHYSICAL, VIRTUAL ou BOTH                            |
-| chkcardsstatus          | Status restrito aos 8 valores válidos do ciclo de vida                |
+| `chk_cards_expiry_month`| Expiry month between 1 and 12                                         |
+| `chk_cards_expiry_year` | Expiry year greater than 2020                                         |
+| `chk_cards_format`      | Format must be PHYSICAL, VIRTUAL, or BOTH                             |
+| `chk_cards_status`      | Status restricted to the 8 valid lifecycle values                     |
 
 ---
 
 ## Insights
 
-- **Conformidade PCI-DSS**: A arquitetura separa o PAN mascarado (armazenado na tabela) do PAN completo (mantido em cofre seguro externo), reduzindo o escopo de auditoria PCI.
-- **Cartões Virtuais e Físicos**: O campo `cardformat` com a opção `BOTH` permite que um mesmo registro represente um cartão físico com sua contraparte digital vinculada, suportando estratégias de digitalização.
-- **Controle Granular de Uso**: Os flags `iscontactless`, `isonlineenabled` e `isinternational` permitem configuração individual por cartão, viabilizando políticas de segurança personalizadas pelo cliente ou pela instituição.
-- **Ciclo de Vida Completo**: A distinção entre `BLOCKEDTEMPORARY` (ação do cliente) e `BLOCKEDFRAUD` (ação do sistema/analista) permite rastreabilidade clara da origem do bloqueio para fins regulatórios e de atendimento.
-- **Criação Condicional**: O script verifica a existência prévia da tabela antes de criá-la, garantindo idempotência na execução em ambientes de deploy contínuo.
-- **Colunas Computadas Persistidas**: `lastfourdigits` e `expiresat` são calculadas e armazenadas fisicamente, otimizando consultas frequentes sem custo de recálculo em tempo de leitura.
-- **Índice Descendente em `issuedat`**: Otimizado para consultas que buscam os cartões emitidos mais recentemente, cenário comum em dashboards operacionais e de atendimento.
+- **PCI-DSS compliance**: The architecture separates the masked PAN (stored in the table) from the full PAN (kept in an external secure vault), reducing the PCI audit scope.
+- **Virtual and physical cards**: The `card_format` field with the `BOTH` option allows a single record to represent a physical card with a linked digital counterpart, supporting digitization strategies.
+- **Granular usage control**: The `is_contactless`, `is_online_enabled`, and `is_international` flags allow individual per-card configuration, enabling customer- or institution-defined security policies.
+- **Complete lifecycle**: The distinction between `BLOCKED_TEMPORARY` (customer action) and `BLOCKED_FRAUD` (system/analyst action) provides clear traceability of the block origin for regulatory and service purposes.
+- **Conditional creation**: The script checks for the table's existence before creating it, ensuring idempotency in continuous deployment environments.
+- **Persisted computed columns**: `last_four_digits` and `expires_at` are calculated and stored physically, optimizing frequent queries without runtime recalculation overhead.
+- **Descending index on `issued_at`**: Optimized for queries seeking the most recently issued cards, a common scenario in operational and customer service dashboards.

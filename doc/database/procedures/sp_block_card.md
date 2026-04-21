@@ -1,68 +1,68 @@
-# card.spblockcard
+# card.sp_block_card
 
-## Descrição
+## Description
 
-Procedimento responsável por realizar o bloqueio de um cartão no sistema NovoCard. Atua como uma camada de conveniência sobre o procedimento `card.spupdatecardstatus`, encapsulando as regras de negócio específicas para operações de bloqueio.
+Procedure responsible for blocking a card in the NovoCard system. Acts as a convenience layer over the `card.sp_update_card_status` procedure, encapsulating the specific business rules for blocking operations.
 
-O procedimento suporta dois cenários distintos de bloqueio:
+The procedure supports two distinct blocking scenarios:
 
-| Tipo de Bloqueio | Descrição | Reversível |
+| Block Type | Description | Reversible |
 |---|---|---|
-| **TEMPORARY** | Bloqueio temporário iniciado pelo cliente (ex.: via aplicativo) | Sim |
-| **FRAUD** | Bloqueio por fraude, acionado por analista de risco ou motor antifraude | Não (requer revisão manual de analista) |
+| **TEMPORARY** | Temporary block initiated by the customer (e.g., via mobile app) | Yes |
+| **FRAUD** | Fraud block triggered by a risk analyst or fraud engine | No (requires manual analyst review) |
 
-## Parâmetros
+## Parameters
 
-| Parâmetro | Tipo | Padrão | Descrição |
+| Parameter | Type | Default | Description |
 |---|---|---|---|
-| `@pcardid` | UNIQUEIDENTIFIER | — | Identificador único do cartão a ser bloqueado |
-| `@pblocktype` | NVARCHAR(20) | `TEMPORARY` | Tipo de bloqueio: `TEMPORARY` ou `FRAUD` |
-| `@preason` | NVARCHAR(255) | NULL | Motivo do bloqueio em texto livre |
-| `@pinitiatedby` | NVARCHAR(20) | `CUSTOMER` | Origem da solicitação: `CUSTOMER`, `RISKANALYST`, `FRAUDENGINE` ou `SUPPORT` |
-| `@poperatorid` | NVARCHAR(100) | NULL | Identificação do colaborador (obrigatório quando o solicitante não é o cliente) |
-| `@pchannel` | NVARCHAR(20) | `APP` | Canal pelo qual a solicitação foi realizada |
+| `@p_card_id` | UNIQUEIDENTIFIER | — | Unique identifier of the card to be blocked |
+| `@p_block_type` | NVARCHAR(20) | `TEMPORARY` | Block type: `TEMPORARY` or `FRAUD` |
+| `@p_reason` | NVARCHAR(255) | NULL | Block reason in free text |
+| `@p_initiated_by` | NVARCHAR(20) | `CUSTOMER` | Request origin: `CUSTOMER`, `RISKANALYST`, `FRAUDENGINE`, or `SUPPORT` |
+| `@p_operator_id` | NVARCHAR(100) | NULL | Staff member identification (required when the requester is not the customer) |
+| `@p_channel` | NVARCHAR(20) | `APP` | Channel through which the request was made |
 
-## Regras de Negócio
+## Business Rules
 
-1. **Validação do tipo de bloqueio** — Apenas os valores `TEMPORARY` e `FRAUD` são aceitos. Qualquer outro valor resulta em erro.
+1. **Block type validation** — Only `TEMPORARY` and `FRAUD` values are accepted. Any other value results in an error.
 
-2. **Restrição de bloqueio por fraude para clientes** — Um cliente não pode iniciar um bloqueio do tipo `FRAUD`. Caso tente, o sistema rejeita a operação e orienta o uso do tipo `TEMPORARY`.
+2. **Fraud block restriction for customers** — A customer cannot initiate a `FRAUD` block. If attempted, the system rejects the operation and recommends using `TEMPORARY` instead.
 
-3. **Mapeamento de status** — O tipo de bloqueio é traduzido para o status correspondente do cartão:
+3. **Status mapping** — The block type is translated to the corresponding card status:
 
-   | Tipo de Bloqueio | Status Resultante |
+   | Block Type | Resulting Status |
    |---|---|
    | TEMPORARY | BLOCKED_TEMPORARY |
    | FRAUD | BLOCKED_FRAUD |
 
-4. A atualização efetiva do status é delegada ao procedimento `card.spupdatecardstatus`.
+4. The actual status update is delegated to the `card.sp_update_card_status` procedure.
 
 ## Process Flow
 
 ```mermaid
 graph TD
-    A[Inicio: Solicitacao de bloqueio de cartao] --> B{Tipo de bloqueio e valido?}
-    B -- Nao --> C[Erro 51000: Tipo de bloqueio invalido]
-    B -- Sim --> D{Tipo FRAUD e solicitante CUSTOMER?}
-    D -- Sim --> E[Erro 51001: Cliente nao pode iniciar bloqueio por fraude]
-    D -- Nao --> F{Qual o tipo de bloqueio?}
-    F -- TEMPORARY --> G[Define status como BLOCKED_TEMPORARY]
-    F -- FRAUD --> H[Define status como BLOCKED_FRAUD]
-    G --> I[Executa card.spupdatecardstatus com novo status]
+    A[Start: Card block request] --> B{Block type is valid?}
+    B -- No --> C[Error 51000: Invalid block type]
+    B -- Yes --> D{Block type is FRAUD and requester is CUSTOMER?}
+    D -- Yes --> E[Error 51001: Customer cannot initiate fraud block]
+    D -- No --> F{What is the block type?}
+    F -- TEMPORARY --> G[Set status to BLOCKED_TEMPORARY]
+    F -- FRAUD --> H[Set status to BLOCKED_FRAUD]
+    G --> I[Execute card.sp_update_card_status with new status]
     H --> I
-    I --> J[Fim: Cartao bloqueado com sucesso]
+    I --> J[End: Card blocked successfully]
 ```
 
-## Tratamento de Erros
+## Error Handling
 
-| Código | Mensagem | Cenário |
+| Code | Message | Scenario |
 |---|---|---|
-| 51000 | Invalid block type. Must be TEMPORARY or FRAUD. | Tipo de bloqueio informado não é reconhecido |
-| 51001 | Customers cannot initiate FRAUD blocks. Use TEMPORARY instead. | Cliente tentou solicitar bloqueio do tipo FRAUD |
+| 51000 | Invalid block type. Must be TEMPORARY or FRAUD. | The provided block type is not recognized |
+| 51001 | Customers cannot initiate FRAUD blocks. Use TEMPORARY instead. | Customer attempted to request a FRAUD block |
 
 ## Insights
 
-- O procedimento utiliza valores padrão que favorecem o cenário mais comum: bloqueio temporário iniciado pelo cliente via aplicativo. Isso simplifica a integração para os canais digitais de autoatendimento.
-- A separação entre bloqueio temporário e por fraude permite trilhas de auditoria distintas e fluxos de reversão diferenciados, o que é essencial para conformidade regulatória.
-- O parâmetro `@poperatorid` viabiliza a rastreabilidade de ações realizadas por colaboradores internos (analistas de risco, suporte), sendo relevante para auditorias e investigações.
-- A delegação da atualização efetiva ao `card.spupdatecardstatus` sugere que esse procedimento centraliza lógica compartilhada como registro de histórico, validação de estado atual do cartão e notificações, evitando duplicação.
+- The procedure uses default values that favor the most common scenario: a temporary block initiated by the customer via mobile app. This simplifies integration for digital self-service channels.
+- The separation between temporary and fraud blocks enables distinct audit trails and differentiated reversal workflows, which is essential for regulatory compliance.
+- The `@p_operator_id` parameter enables traceability of actions taken by internal staff (risk analysts, support), which is relevant for audits and investigations.
+- Delegating the actual update to `card.sp_update_card_status` suggests that this procedure centralizes shared logic such as history recording, current card state validation, and notifications, avoiding duplication.

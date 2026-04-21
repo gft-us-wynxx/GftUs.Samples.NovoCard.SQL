@@ -1,45 +1,45 @@
-# Documentação: Schema `card`
+# Documentation: Schema `card`
 
-## Visão Geral
+## Overview
 
-| Atributo       | Detalhe                                                                                                    |
-|----------------|------------------------------------------------------------------------------------------------------------|
-| **Nome**       | `card`                                                                                                     |
-| **Aplicação**  | NovoCard                                                                                                   |
-| **Tipo**       | Estrutura de Dados (Schema)                                                                                |
-| **Descrição**  | Schema central de gestão de cartões. Agrupa tipos de produtos de cartão, cartões emitidos, contas, limites de gastos, ciclo de vida de status e registros de transações. |
+| Attribute      | Detail                                                                                                          |
+|----------------|-----------------------------------------------------------------------------------------------------------------|
+| **Name**       | `card`                                                                                                          |
+| **Application**| NovoCard                                                                                                        |
+| **Type**       | Data Structure (Schema)                                                                                         |
+| **Description**| Core card management schema. Groups card product types, issued cards, accounts, spending limits, status lifecycle, and transaction records. |
 
-## Descrição
+## Description
 
-O schema `card` é a estrutura organizacional principal da aplicação **NovoCard**, responsável por agrupar todos os objetos de banco de dados relacionados à gestão do ciclo de vida de cartões. Ele serve como namespace lógico para as seguintes áreas de negócio:
+The `card` schema is the primary organizational structure of the **NovoCard** application, responsible for grouping all database objects related to the card lifecycle. It serves as a logical namespace for the following business areas:
 
-| Área de Negócio          | Finalidade                                                        |
-|--------------------------|-------------------------------------------------------------------|
-| Produtos de Cartão       | Definição dos tipos de cartão disponíveis para emissão            |
-| Cartões Emitidos         | Registro dos cartões efetivamente emitidos aos clientes           |
-| Contas                   | Contas vinculadas aos cartões                                     |
-| Limites de Gastos        | Controle dos limites de crédito e gastos permitidos               |
-| Ciclo de Vida de Status  | Gerenciamento dos estados do cartão (ativo, bloqueado, cancelado) |
-| Registros de Transações  | Histórico de transações realizadas com os cartões                 |
+| Business Area         | Purpose                                                       |
+|-----------------------|---------------------------------------------------------------|
+| Card Products         | Definition of card types available for issuance              |
+| Issued Cards          | Registry of cards actually issued to customers               |
+| Accounts              | Accounts linked to cards                                      |
+| Spending Limits       | Control of credit and spending limits                         |
+| Status Lifecycle      | Management of card states (active, blocked, cancelled)        |
+| Transaction Records   | History of transactions made with cards                       |
 
-## Detalhes Técnicos
+## Technical Details
 
-A criação do schema é realizada de forma **idempotente**, ou seja, verifica previamente a existência do schema `card` no catálogo de schemas do sistema (`sys.schemas`) antes de executar o comando de criação. Isso garante que a execução repetida do script não gere erros.
+Schema creation is performed **idempotently**: it first checks for the existence of the `card` schema in the system catalog (`sys.schemas`) before executing the creation command, ensuring that repeated script execution does not produce errors.
 
 ## Process Flow
 
 ```mermaid
 graph TD
-    A[Inicio] --> B{Schema card ja existe em sys.schemas?}
-    B -- Sim --> C[Nenhuma acao realizada]
-    B -- Nao --> D[Criar schema card]
-    D --> E[Fim]
+    A[Start] --> B{Does card schema already exist in sys.schemas?}
+    B -- Yes --> C[No action taken]
+    B -- No --> D[Create card schema]
+    D --> E[End]
     C --> E
 ```
 
 ## Insights
 
-- Este schema é a **base estrutural** de toda a aplicação NovoCard — todos os objetos de dados relacionados a cartões devem residir dentro dele.
-- A abordagem idempotente na criação é uma boa prática para scripts de implantação e migração, permitindo reexecução segura em diferentes ambientes (desenvolvimento, homologação, produção).
-- Por ser apenas a criação do schema, nenhuma tabela, índice ou constraint é definida neste script — esses objetos são esperados em scripts subsequentes.
-- A separação em schema dedicado facilita o controle de **permissões de acesso** por área de negócio, permitindo conceder ou restringir acesso ao domínio de cartões de forma granular.
+- This schema is the **structural foundation** of the entire NovoCard application — all card-related data objects must reside within it.
+- The idempotent creation approach is a best practice for deployment and migration scripts, allowing safe re-execution across environments (development, staging, production).
+- Because this is only the schema creation, no tables, indexes, or constraints are defined here — those objects are expected in subsequent scripts.
+- Separating into a dedicated schema facilitates **granular access-permission control** by business area, enabling precise grant or restriction of access to the card domain.

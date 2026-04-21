@@ -1,96 +1,96 @@
-# Documentação — `card.cardstatushistory`
+# Documentation — `card.card_status_history`
 
-## Visão Geral
+## Overview
 
-| Atributo       | Detalhe                                                                                                                                                  |
-|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Aplicação**  | NovoCard                                                                                                                                                 |
-| **Schema**     | `card`                                                                                                                                                   |
-| **Objeto**     | `cardstatushistory`                                                                                                                                      |
-| **Tipo**       | Estrutura de dados (tabela)                                                                                                                              |
-| **Finalidade** | Registro imutável (ledger) de todas as transições de status de cartão. Cada mudança de status gera um novo registro, garantindo rastreabilidade completa. |
+| Attribute      | Detail                                                                                                                                                       |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Application**| NovoCard                                                                                                                                                     |
+| **Schema**     | `card`                                                                                                                                                       |
+| **Object**     | `card_status_history`                                                                                                                                        |
+| **Type**       | Data structure (table)                                                                                                                                       |
+| **Purpose**    | Immutable ledger of all card status transitions. Each status change generates a new record, ensuring complete traceability.                                   |
 
-Esta tabela é utilizada principalmente para **relatórios de conformidade (compliance)** e **investigações de disputas de clientes**, permitindo reconstruir o histórico completo de estados pelos quais um cartão passou.
-
----
-
-## Estrutura de Dados
-
-### Colunas
-
-| Coluna           | Tipo                  | Nulável | Descrição                                                                                      |
-|------------------|-----------------------|---------|------------------------------------------------------------------------------------------------|
-| `historyid`      | `BIGINT IDENTITY`     | Não     | Identificador sequencial único do registro de histórico (chave primária).                      |
-| `cardid`         | `UNIQUEIDENTIFIER`    | Não     | Referência ao cartão na tabela `card.cards`. Exclusão em cascata.                              |
-| `previousstatus` | `NVARCHAR(30)`        | Não     | Status do cartão **antes** da transição.                                                       |
-| `newstatus`      | `NVARCHAR(30)`        | Não     | Status do cartão **após** a transição.                                                         |
-| `reason`         | `NVARCHAR(255)`       | Sim     | Motivo ou justificativa da mudança de status.                                                  |
-| `initiatedby`    | `NVARCHAR(20)`        | Não     | Ator responsável pela mudança de status.                                                       |
-| `operatorid`     | `NVARCHAR(100)`       | Sim     | Identificador interno do usuário operador (aplicável quando o ator é RISKANALYST ou SUPPORT).  |
-| `channel`        | `NVARCHAR(20)`        | Sim     | Canal pelo qual a mudança de status foi solicitada.                                            |
-| `ipaddress`      | `VARCHAR(45)`         | Sim     | Endereço IP de origem da solicitação (suporte a IPv4 e IPv6).                                  |
-| `changedat`      | `DATETIMEOFFSET`      | Não     | Data e hora da mudança de status, com fuso horário. Padrão: momento atual do servidor.         |
-
-### Valores Permitidos — `initiatedby`
-
-| Valor          | Descrição                                      |
-|----------------|-------------------------------------------------|
-| `CUSTOMER`     | Mudança iniciada pelo próprio cliente.          |
-| `SYSTEM`       | Mudança automática do sistema.                  |
-| `RISKANALYST`  | Mudança realizada por um analista de risco.     |
-| `FRAUDENGINE`  | Mudança disparada pelo motor automatizado de regras de fraude. |
-| `SUPPORT`      | Mudança realizada pela equipe de suporte.       |
-
-### Valores Permitidos — `channel`
-
-| Valor    | Descrição                          |
-|----------|------------------------------------|
-| `APP`    | Aplicativo móvel                   |
-| `WEB`    | Portal web                         |
-| `IVR`    | Unidade de Resposta Audível (URA)  |
-| `BRANCH` | Agência / ponto de atendimento    |
-| `API`    | Integração via API                 |
-| `BATCH`  | Processamento em lote              |
+This table is primarily used for **compliance reporting** and **customer dispute investigations**, enabling a full reconstruction of the status history for any given card.
 
 ---
 
-## Relacionamentos
+## Data Structure
 
-| Tipo             | Tabela Referenciada | Coluna Local | Coluna Referenciada | Comportamento de Exclusão |
-|------------------|---------------------|--------------|---------------------|---------------------------|
-| Chave Estrangeira | `card.cards`       | `cardid`     | `cardid`            | `CASCADE`                 |
+### Columns
 
-Ao excluir um cartão da tabela `card.cards`, todos os registros de histórico de status associados serão automaticamente removidos.
+| Column           | Type                  | Nullable | Description                                                                                      |
+|------------------|-----------------------|----------|--------------------------------------------------------------------------------------------------|
+| `history_id`     | `BIGINT IDENTITY`     | No       | Unique sequential identifier for the history record (primary key).                               |
+| `card_id`        | `UNIQUEIDENTIFIER`    | No       | Reference to the card in `card.cards`. Cascade delete.                                           |
+| `previous_status`| `NVARCHAR(30)`        | No       | Card status **before** the transition.                                                           |
+| `new_status`     | `NVARCHAR(30)`        | No       | Card status **after** the transition.                                                            |
+| `reason`         | `NVARCHAR(255)`       | Yes      | Reason or justification for the status change.                                                   |
+| `initiated_by`   | `NVARCHAR(20)`        | No       | Actor responsible for the status change.                                                         |
+| `operator_id`    | `NVARCHAR(100)`       | Yes      | Internal identifier of the operator user (applicable when the actor is RISKANALYST or SUPPORT).  |
+| `channel`        | `NVARCHAR(20)`        | Yes      | Channel through which the status change was requested.                                           |
+| `ip_address`     | `VARCHAR(45)`         | Yes      | Source IP address of the request (supports IPv4 and IPv6).                                       |
+| `changed_at`     | `DATETIMEOFFSET`      | No       | Date and time of the status change, with time zone. Default: current server time.                |
+
+### Allowed Values — `initiated_by`
+
+| Value          | Description                                          |
+|----------------|------------------------------------------------------|
+| `CUSTOMER`     | Change initiated by the customer.                    |
+| `SYSTEM`       | Automated system change.                             |
+| `RISKANALYST`  | Change made by a risk analyst.                       |
+| `FRAUDENGINE`  | Change triggered by the automated fraud rules engine.|
+| `SUPPORT`      | Change made by the support team.                     |
+
+### Allowed Values — `channel`
+
+| Value    | Description                          |
+|----------|--------------------------------------|
+| `APP`    | Mobile application                   |
+| `WEB`    | Web portal                           |
+| `IVR`    | Interactive Voice Response (IVR)     |
+| `BRANCH` | Branch / service point               |
+| `API`    | API integration                      |
+| `BATCH`  | Batch processing                     |
 
 ---
 
-## Índices
+## Relationships
 
-| Nome                                    | Coluna(s)    | Ordenação  | Finalidade                                                        |
-|-----------------------------------------|--------------|------------|-------------------------------------------------------------------|
-| `pkcardstatushistory` (PK, clustered)   | `historyid`  | ASC        | Identificação única de cada registro.                             |
-| `idxcardstatushistorycardid`            | `cardid`     | ASC        | Consultas rápidas de histórico por cartão.                        |
-| `idxcardstatushistorychangedat`         | `changedat`  | DESC       | Consultas ordenadas cronologicamente (mais recentes primeiro).    |
-| `idxcardstatushistorynewstatus`         | `newstatus`  | ASC        | Filtragem eficiente por status de destino (ex.: buscar todos os bloqueios por fraude). |
+| Type         | Referenced Table | Local Column | Referenced Column | Delete Behavior |
+|--------------|------------------|--------------|-------------------|-----------------|
+| Foreign Key  | `card.cards`     | `card_id`    | `card_id`         | `CASCADE`       |
+
+Deleting a card from `card.cards` automatically removes all associated status history records.
 
 ---
 
-## Restrições (Constraints)
+## Indexes
 
-| Nome                          | Tipo    | Regra                                                                                      |
-|-------------------------------|---------|--------------------------------------------------------------------------------------------|
-| `pkcardstatushistory`         | PK      | `historyid` é único e não nulo.                                                            |
-| `fkstatushistorycard`         | FK      | `cardid` deve existir em `card.cards`.                                                     |
-| `chkstatushistoryinitiator`   | CHECK   | `initiatedby` restrito a: CUSTOMER, SYSTEM, RISKANALYST, FRAUDENGINE, SUPPORT.             |
-| `chkstatushistorychannel`     | CHECK   | `channel` restrito a: APP, WEB, IVR, BRANCH, API, BATCH.                                  |
+| Name                                        | Column(s)    | Order | Purpose                                                             |
+|---------------------------------------------|--------------|-------|---------------------------------------------------------------------|
+| `pk_card_status_history` (PK, clustered)    | `history_id` | ASC   | Unique identification of each record.                               |
+| `idx_card_status_history_card_id`           | `card_id`    | ASC   | Fast history queries by card.                                       |
+| `idx_card_status_history_changed_at`        | `changed_at` | DESC  | Chronologically ordered queries (most recent first).                |
+| `idx_card_status_history_new_status`        | `new_status` | ASC   | Efficient filtering by target status (e.g., find all fraud blocks). |
+
+---
+
+## Constraints
+
+| Name                          | Type  | Rule                                                                                       |
+|-------------------------------|-------|--------------------------------------------------------------------------------------------|
+| `pk_card_status_history`      | PK    | `history_id` is unique and non-null.                                                       |
+| `fk_status_history_card`      | FK    | `card_id` must exist in `card.cards`.                                                      |
+| `chk_status_history_initiator`| CHECK | `initiated_by` restricted to: CUSTOMER, SYSTEM, RISKANALYST, FRAUDENGINE, SUPPORT.        |
+| `chk_status_history_channel`  | CHECK | `channel` restricted to: APP, WEB, IVR, BRANCH, API, BATCH.                               |
 
 ---
 
 ## Insights
 
-- **Natureza imutável**: a tabela funciona como um log de auditoria — registros são apenas inseridos, nunca atualizados ou removidos diretamente (exceto pela cascata de exclusão do cartão pai).
-- **Rastreabilidade completa**: a combinação de `initiatedby`, `operatorid`, `channel` e `ipaddress` permite identificar com precisão **quem**, **como** e **de onde** cada mudança de status foi originada, atendendo requisitos regulatórios e de auditoria.
-- **Crescimento volumétrico**: por ser um modelo append-only vinculado a cada transição de status de cada cartão, esta tabela tende a crescer significativamente ao longo do tempo. O índice descendente em `changedat` favorece consultas que priorizam eventos mais recentes.
-- **Suporte a automação e operação humana**: o campo `initiatedby` distingue claramente ações automatizadas (SYSTEM, FRAUDENGINE) de ações manuais (CUSTOMER, RISKANALYST, SUPPORT), facilitando análises de efetividade de regras automatizadas versus intervenções humanas.
-- **Exclusão em cascata**: a remoção de um cartão elimina todo o seu histórico de transições, o que deve ser considerado em políticas de retenção de dados e conformidade regulatória — pode ser necessário arquivar os dados antes da exclusão.
-- **Campo `reason` opcional**: nem todas as transições possuem justificativa textual, o que pode dificultar investigações retroativas caso o preenchimento não seja padronizado nas camadas de aplicação.
+- **Immutable nature**: the table functions as an audit log — records are only inserted, never updated or removed directly (except by cascade delete from the parent card).
+- **Complete traceability**: the combination of `initiated_by`, `operator_id`, `channel`, and `ip_address` allows precise identification of **who**, **how**, and **from where** each status change originated, satisfying regulatory and audit requirements.
+- **Volume growth**: as an append-only model tied to every status transition of every card, this table tends to grow significantly over time. The descending index on `changed_at` favors queries that prioritize the most recent events.
+- **Support for automation and human action**: the `initiated_by` field clearly distinguishes automated actions (SYSTEM, FRAUDENGINE) from manual actions (CUSTOMER, RISKANALYST, SUPPORT), facilitating analysis of automated rule effectiveness versus human interventions.
+- **Cascade delete**: removing a card eliminates its entire transition history, which must be considered in data retention and regulatory compliance policies — archiving the data before deletion may be necessary.
+- **Optional `reason` field**: not all transitions include a textual justification, which can complicate retroactive investigations if the application layers do not standardize this field's population.

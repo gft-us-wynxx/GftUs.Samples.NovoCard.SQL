@@ -1,16 +1,14 @@
+# Card Status Audit Trigger — `trg_card_status_audit`
 
+## Overview
 
-# Trigger de Auditoria de Status de Cartão — `trg_card_status_audit`
-
-## Visão Geral
-
-Conjunto de triggers pertencentes à aplicação **NovoCard** que implementam uma trilha de auditoria completa e à prova de adulteração sobre tabelas sensíveis do sistema. Cada trigger captura automaticamente todas as operações de **INSERT**, **UPDATE** e **DELETE**, gravando um snapshot JSON do registro afetado na tabela centralizada `audit.audit_log`. O objetivo principal é atender requisitos de **compliance regulatório** e viabilizar **análise forense** de dados.
+Set of triggers belonging to the **NovoCard** application that implement a complete, tamper-proof audit trail over sensitive system tables. Each trigger automatically captures all **INSERT**, **UPDATE**, and **DELETE** operations, writing a JSON snapshot of the affected record to the centralized `audit.audit_log` table. The primary objective is to satisfy **regulatory compliance** requirements and enable **forensic data analysis**.
 
 ---
 
-## Tabelas Monitoradas
+## Monitored Tables
 
-| Tabela de Origem | Schema | Chave Primária | Trigger Associada |
+| Source Table | Schema | Primary Key | Associated Trigger |
 |---|---|---|---|
 | `card.cards` | `card` | `card_id` | `trg_cards_audit` |
 | `customer.customers` | `customer` | `customer_id` | `trg_customers_audit` |
@@ -18,39 +16,39 @@ Conjunto de triggers pertencentes à aplicação **NovoCard** que implementam um
 
 ---
 
-## Tabela de Destino — `audit.audit_log`
+## Destination Table — `audit.audit_log`
 
-Todas as triggers gravam na mesma tabela de auditoria com a seguinte estrutura de colunas:
+All triggers write to the same audit table with the following column structure:
 
-| Coluna | Descrição |
+| Column | Description |
 |---|---|
-| `schema_name` | Nome do schema da tabela de origem (ex.: `card`, `customer`, `design`) |
-| `table_name` | Nome da tabela de origem (ex.: `cards`, `customers`, `card_designs`) |
-| `operation` | Tipo da operação DML realizada: `INSERT`, `UPDATE` ou `DELETE` |
-| `record_id` | Identificador único do registro afetado, convertido para `NVARCHAR(100)` |
-| `old_values` | Snapshot JSON do registro **antes** da alteração (nulo em INSERT) |
-| `new_values` | Snapshot JSON do registro **após** a alteração (nulo em DELETE) |
-| `changed_by` | Usuário do sistema que executou a operação (`SYSTEM_USER`) |
-| `changed_at` | Data e hora com fuso horário do momento da alteração (`SYSDATETIMEOFFSET`) |
+| `schema_name` | Name of the source table's schema (e.g., `card`, `customer`, `design`) |
+| `table_name` | Name of the source table (e.g., `cards`, `customers`, `card_designs`) |
+| `operation` | Type of DML operation performed: `INSERT`, `UPDATE`, or `DELETE` |
+| `record_id` | Unique identifier of the affected record, cast to `NVARCHAR(100)` |
+| `old_values` | JSON snapshot of the record **before** the change (null on INSERT) |
+| `new_values` | JSON snapshot of the record **after** the change (null on DELETE) |
+| `changed_by` | System user who executed the operation (`SYSTEM_USER`) |
+| `changed_at` | Date and time with time zone of the change (`SYSDATETIMEOFFSET`) |
 
 ---
 
-## Lógica de Funcionamento
+## Logic
 
-Todas as três triggers seguem exatamente a mesma lógica, diferindo apenas na tabela de origem e na chave primária utilizada:
+All three triggers follow exactly the same logic, differing only in the source table and primary key used:
 
-1. **Determinação da operação**: A trigger verifica a existência de registros nas pseudo-tabelas `INSERTED` e `DELETED` para classificar a operação como `INSERT`, `UPDATE` ou `DELETE`.
-2. **Junção completa**: Utiliza `FULL OUTER JOIN` entre `INSERTED` e `DELETED` pela chave primária, garantindo cobertura de todos os cenários (inclusão, alteração e exclusão).
-3. **Serialização JSON**: Para cada linha afetada, subconsultas correlacionadas serializam os valores antigos e novos em formato JSON utilizando `FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER`.
-4. **Gravação do registro de auditoria**: Insere uma linha em `audit.audit_log` com todos os metadados e snapshots.
+1. **Operation detection**: The trigger checks for records in the `INSERTED` and `DELETED` pseudo-tables to classify the operation as `INSERT`, `UPDATE`, or `DELETE`.
+2. **Full join**: Uses a `FULL OUTER JOIN` between `INSERTED` and `DELETED` by primary key, ensuring coverage of all scenarios (insert, update, and delete).
+3. **JSON serialization**: For each affected row, correlated subqueries serialize the old and new values into JSON format using `FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER`.
+4. **Audit record insertion**: Inserts one row in `audit.audit_log` with all metadata and snapshots.
 
-### Mapeamento de Operação
+### Operation Mapping
 
-| Condição | Operação Classificada |
+| Condition | Classified Operation |
 |---|---|
-| Existem registros em `INSERTED` **e** em `DELETED` | `UPDATE` |
-| Existem registros apenas em `INSERTED` | `INSERT` |
-| Não existem registros em `INSERTED` | `DELETE` |
+| Records exist in both `INSERTED` **and** `DELETED` | `UPDATE` |
+| Records exist only in `INSERTED` | `INSERT` |
+| No records in `INSERTED` | `DELETE` |
 
 ---
 
@@ -58,29 +56,29 @@ Todas as três triggers seguem exatamente a mesma lógica, diferindo apenas na t
 
 ```mermaid
 graph TD
-    A[Evento DML disparado na tabela monitorada] --> B{Existem registros em INSERTED e DELETED?}
-    B -- Sim --> C[Operacao = UPDATE]
-    B -- Nao --> D{Existem registros em INSERTED?}
-    D -- Sim --> E[Operacao = INSERT]
-    D -- Nao --> F[Operacao = DELETE]
-    C --> G[FULL OUTER JOIN entre INSERTED e DELETED pela chave primaria]
+    A[DML event fired on monitored table] --> B{Records in both INSERTED and DELETED?}
+    B -- Yes --> C[Operation = UPDATE]
+    B -- No --> D{Records in INSERTED?}
+    D -- Yes --> E[Operation = INSERT]
+    D -- No --> F[Operation = DELETE]
+    C --> G[FULL OUTER JOIN between INSERTED and DELETED by primary key]
     E --> G
     F --> G
-    G --> H[Serializar old_values via subconsulta em DELETED com FOR JSON]
-    H --> I[Serializar new_values via subconsulta em INSERTED com FOR JSON]
-    I --> J[Capturar SYSTEM_USER e SYSDATETIMEOFFSET]
-    J --> K[INSERT na tabela audit.audit_log]
-    K --> L[Fim da execucao da trigger]
+    G --> H[Serialize old_values via correlated subquery on DELETED with FOR JSON]
+    H --> I[Serialize new_values via correlated subquery on INSERTED with FOR JSON]
+    I --> J[Capture SYSTEM_USER and SYSDATETIMEOFFSET]
+    J --> K[INSERT into audit.audit_log]
+    K --> L[End of trigger execution]
 ```
 
 ---
 
 ## Insights
 
-- **Abordagem set-based**: As triggers do SQL Server operam no nível de instrução, não por linha. A utilização de `FULL OUTER JOIN` com subconsultas correlacionadas garante que operações em lote (múltiplas linhas afetadas por um único comando DML) sejam auditadas corretamente, gerando um registro de auditoria por linha afetada.
-- **Momento de disparo**: As triggers são configuradas como `AFTER`, ou seja, disparam somente após a efetivação da operação DML, garantindo que os valores capturados refletem o estado real dos dados.
-- **Rastreabilidade completa**: A combinação de `old_values` e `new_values` em formato JSON permite identificar exatamente quais campos foram alterados em uma operação de `UPDATE`, facilitando comparações campo a campo.
-- **Formato JSON sem wrapper de array**: O uso de `WITHOUT_ARRAY_WRAPPER` produz um objeto JSON simples (não encapsulado em array), simplificando o consumo posterior dos dados de auditoria.
-- **Cobertura de compliance**: A captura do usuário responsável (`SYSTEM_USER`) e do timestamp com fuso horário (`SYSDATETIMEOFFSET`) atende requisitos comuns de normas regulatórias como PCI-DSS, que exigem rastreabilidade de quem alterou dados de cartão e quando.
-- **Padrão replicável**: A estrutura idêntica das três triggers facilita a extensão do mecanismo de auditoria para novas tabelas sensíveis, bastando ajustar o nome da tabela, schema e chave primária.
-- **Impacto em performance**: Toda operação DML nas tabelas monitoradas terá overhead adicional devido à serialização JSON e à inserção na tabela de auditoria. Para tabelas com alto volume transacional, é recomendável monitorar o impacto e considerar estratégias de particionamento ou arquivamento da tabela `audit.audit_log`.
+- **Set-based approach**: SQL Server triggers operate at the statement level, not per row. The use of `FULL OUTER JOIN` with correlated subqueries ensures that batch operations (multiple rows affected by a single DML command) are correctly audited, generating one audit record per affected row.
+- **Firing time**: The triggers are configured as `AFTER`, meaning they fire only after the DML operation has been committed, ensuring the captured values reflect the actual state of the data.
+- **Complete traceability**: The combination of `old_values` and `new_values` in JSON format allows identifying exactly which fields were changed in an `UPDATE` operation, facilitating field-by-field comparisons.
+- **JSON without array wrapper**: The use of `WITHOUT_ARRAY_WRAPPER` produces a simple JSON object (not wrapped in an array), simplifying subsequent consumption of audit data.
+- **Compliance coverage**: Capturing the responsible user (`SYSTEM_USER`) and the timestamp with time zone (`SYSDATETIMEOFFSET`) satisfies common requirements of regulatory standards such as PCI-DSS, which require traceability of who changed card data and when.
+- **Replicable pattern**: The identical structure of the three triggers facilitates extending the audit mechanism to new sensitive tables — simply adjust the table name, schema, and primary key.
+- **Performance impact**: Every DML operation on monitored tables will incur additional overhead due to JSON serialization and insertion into the audit table. For high-volume tables, monitoring the impact and considering partitioning or archiving strategies for `audit.audit_log` is recommended.

@@ -1,99 +1,97 @@
+# design.card_designs
 
+## Overview
 
-# design.carddesigns
+Data structure belonging to the **NovoCard** application responsible for recording the design (artwork/visual customization) applied to a specific card. Each card has at most one current design (`is_current = 1`), but the full history of previous designs is retained for traceability purposes.
 
-## Visão Geral
-
-Estrutura de dados pertencente à aplicação **NovoCard** responsável por registrar o design (arte/personalização visual) aplicado a um cartão específico. Cada cartão possui no máximo um design vigente (`iscurrent = 1`), porém todo o histórico de designs anteriores é mantido para fins de rastreabilidade.
-
-Os clientes podem personalizar elementos visuais sobre o template base, como nome impresso, cor de destaque, monograma e preferência de fonte. Toda personalização passa por um fluxo de **moderação de conteúdo** antes de ser aprovada para impressão/renderização.
+Customers can customize visual elements over the base template, such as a printed name, accent color, monogram, and font preference. All customization goes through a **content moderation** workflow before being approved for printing/rendering.
 
 ---
 
-## Esquema e Relacionamentos
+## Schema and Relationships
 
-| Relacionamento | Tabela Referenciada | Coluna FK | Comportamento de Exclusão |
+| Relationship | Referenced Table | FK Column | Delete Behavior |
 |---|---|---|---|
-| Cartão | `card.cards` | `cardid` | `CASCADE` — ao excluir o cartão, seus designs são removidos |
-| Template | `design.designtemplates` | `templateid` | Sem cascata (restrição padrão) |
+| Card | `card.cards` | `card_id` | `CASCADE` — deleting the card removes its designs |
+| Template | `design.design_templates` | `template_id` | No cascade (default restriction) |
 
 ---
 
-## Estrutura de Colunas
+## Column Structure
 
-### Identificação
+### Identification
 
-| Coluna | Tipo | Nulável | Padrão | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `designid` | `UNIQUEIDENTIFIER` | Não | `NEWID()` | Chave primária do design |
-| `cardid` | `UNIQUEIDENTIFIER` | Não | — | Cartão ao qual o design está associado |
-| `templateid` | `UNIQUEIDENTIFIER` | Não | — | Template base utilizado para o design |
+| `design_id` | `UNIQUEIDENTIFIER` | No | `NEWID()` | Primary key of the design |
+| `card_id` | `UNIQUEIDENTIFIER` | No | — | Card to which the design is associated |
+| `template_id` | `UNIQUEIDENTIFIER` | No | — | Base template used for the design |
 
-### Personalização do Cliente
+### Customer Customization
 
-| Coluna | Tipo | Nulável | Padrão | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `customnametext` | `NVARCHAR(26)` | Sim | — | Nome personalizado impresso na face do cartão, substituindo o nome completo (máx. 26 caracteres) |
-| `customcolor` | `NCHAR(7)` | Sim | — | Cor hexadecimal de destaque escolhida pelo cliente (ex.: `#FF5A2D`) |
-| `monogram` | `NCHAR(2)` | Sim | — | Monograma de 1 a 2 caracteres |
-| `fontpreference` | `NVARCHAR(30)` | Sim | — | Preferência de fonte para renderização |
+| `custom_name_text` | `NVARCHAR(26)` | Yes | — | Customized name printed on the card face, replacing the full name (max 26 characters) |
+| `custom_color` | `NCHAR(7)` | Yes | — | Hexadecimal accent color chosen by the customer (e.g., `#FF5A2D`) |
+| `monogram` | `NCHAR(2)` | Yes | — | Monogram of 1 to 2 characters |
+| `font_preference` | `NVARCHAR(30)` | Yes | — | Font preference for rendering |
 
-### Estado do Design
+### Design State
 
-| Coluna | Tipo | Nulável | Padrão | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `iscurrent` | `BIT` | Não | `1` | Indica se este é o design vigente do cartão |
-| `approvalstatus` | `NVARCHAR(20)` | Não | `PENDING` | Status da moderação de conteúdo |
-| `approvedat` | `DATETIMEOFFSET` | Sim | — | Data/hora da aprovação |
-| `rejectionreason` | `NVARCHAR(255)` | Sim | — | Motivo da rejeição, quando aplicável |
-| `assignedat` | `DATETIMEOFFSET` | Não | `SYSDATETIMEOFFSET()` | Data/hora em que o design foi atribuído ao cartão |
-| `replacedat` | `DATETIMEOFFSET` | Sim | — | Data/hora em que o design foi substituído por outro |
+| `is_current` | `BIT` | No | `1` | Indicates whether this is the card's current active design |
+| `approval_status` | `NVARCHAR(20)` | No | `PENDING` | Content moderation status |
+| `approved_at` | `DATETIMEOFFSET` | Yes | — | Approval date/time |
+| `rejection_reason` | `NVARCHAR(255)` | Yes | — | Rejection reason, when applicable |
+| `assigned_at` | `DATETIMEOFFSET` | No | `SYSDATETIMEOFFSET()` | Date/time the design was assigned to the card |
+| `replaced_at` | `DATETIMEOFFSET` | Yes | — | Date/time the design was replaced by another |
 
-#### Valores Permitidos para `approvalstatus`
+#### Allowed Values for `approval_status`
 
-| Valor | Significado |
+| Value | Meaning |
 |---|---|
-| `PENDING` | Aguardando moderação |
-| `APPROVED` | Aprovado para impressão/renderização |
-| `REJECTED` | Rejeitado pela moderação |
-| `CANCELLED` | Cancelado |
+| `PENDING` | Awaiting moderation |
+| `APPROVED` | Approved for printing/rendering |
+| `REJECTED` | Rejected by moderation |
+| `CANCELLED` | Cancelled |
 
-### Metadados de Renderização
+### Rendering Metadata
 
-| Coluna | Tipo | Nulável | Padrão | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `renderurl` | `NVARCHAR(500)` | Sim | — | URL da imagem/artefato renderizado |
-| `renderversion` | `SMALLINT` | Não | `1` | Versão da renderização (incrementada a cada re-renderização) |
-| `renderedat` | `DATETIMEOFFSET` | Sim | — | Data/hora da última renderização |
+| `render_url` | `NVARCHAR(500)` | Yes | — | URL of the rendered image/artifact |
+| `render_version` | `SMALLINT` | No | `1` | Rendering version (incremented on each re-render) |
+| `rendered_at` | `DATETIMEOFFSET` | Yes | — | Date/time of the last rendering |
 
-### Auditoria
+### Audit
 
-| Coluna | Tipo | Nulável | Padrão | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `createdat` | `DATETIMEOFFSET` | Não | `SYSDATETIMEOFFSET()` | Data/hora de criação do registro |
+| `created_at` | `DATETIMEOFFSET` | No | `SYSDATETIMEOFFSET()` | Record creation date/time |
 
 ---
 
-## Índices
+## Indexes
 
-| Índice | Colunas | Tipo | Finalidade |
+| Index | Columns | Type | Purpose |
 |---|---|---|---|
-| `pk_carddesigns` | `designid` | Primary Key | Identificação única do design |
-| `idx_carddesigns_cardid` | `cardid` | Não-único | Consultas por cartão |
-| `idx_carddesigns_templateid` | `templateid` | Não-único | Consultas por template |
-| `idx_carddesigns_onecurrent` | `cardid` (filtrado: `iscurrent = 1`) | **Único filtrado** | Garante que apenas um design vigente exista por cartão |
-| `idx_carddesigns_approval` | `approvalstatus` | Não-único | Consultas por status de aprovação |
+| `pk_card_designs` | `design_id` | Primary Key | Unique design identification |
+| `idx_card_designs_card_id` | `card_id` | Non-unique | Queries by card |
+| `idx_card_designs_template_id` | `template_id` | Non-unique | Queries by template |
+| `idx_card_designs_one_current` | `card_id` (filtered: `is_current = 1`) | **Filtered Unique** | Guarantees only one current design exists per card |
+| `idx_card_designs_approval` | `approval_status` | Non-unique | Queries by approval status |
 
 ---
 
 ## Insights
 
-- **Unicidade do design vigente**: O índice único filtrado `idx_carddesigns_onecurrent` é a garantia em nível de banco de dados de que nunca haverá dois designs simultâneos marcados como vigentes para o mesmo cartão. Qualquer processo de troca de design deve desativar o anterior (`iscurrent = 0` e preencher `replacedat`) antes de inserir ou ativar o novo.
+- **Uniqueness of the current design**: The filtered unique index `idx_card_designs_one_current` is the database-level guarantee that there will never be two simultaneous designs marked as current for the same card. Any design replacement process must deactivate the previous one (`is_current = 0` and populate `replaced_at`) before inserting or activating the new one.
 
-- **Fluxo de moderação obrigatório**: Todo design nasce com status `PENDING`. A personalização só deve ser renderizada e impressa após transição para `APPROVED`. Processos de fila/backoffice podem utilizar o índice `idx_carddesigns_approval` para buscar itens pendentes de forma eficiente.
+- **Mandatory moderation workflow**: Every design starts with status `PENDING`. Customization should only be rendered and printed after transitioning to `APPROVED`. Queue/back-office processes can use the `idx_card_designs_approval` index to efficiently fetch pending items.
 
-- **Exclusão em cascata**: A remoção de um cartão na tabela `card.cards` elimina automaticamente todo o histórico de designs associados. Já a exclusão de um template em `design.designtemplates` será bloqueada enquanto houver designs referenciando-o.
+- **Cascade delete**: Removing a card from `card.cards` automatically deletes the entire associated design history. Deleting a template from `design.design_templates` will be blocked as long as designs are referencing it.
 
-- **Versionamento de renderização**: O campo `renderversion` permite rastrear quantas vezes a arte foi gerada, útil para cenários de re-renderização após correções no template ou nos dados do cliente.
+- **Rendering versioning**: The `render_version` field tracks how many times the artwork was generated, useful for re-rendering scenarios following corrections to the template or customer data.
 
-- **Criação condicional**: A tabela só é criada caso ainda não exista no banco (`IF OBJECT_ID ... IS NULL`), garantindo idempotência do script de implantação.
+- **Conditional creation**: The table is only created if it does not already exist in the database (`IF OBJECT_ID ... IS NULL`), ensuring deployment script idempotency.

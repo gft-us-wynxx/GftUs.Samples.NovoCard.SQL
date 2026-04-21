@@ -1,71 +1,71 @@
-# design.designtemplates
+# design.design_templates
 
-## Descrição Geral
+## General Description
 
-Catálogo mestre de templates de design de cartões gerenciado pela equipe de design do **NovoCard**. Os templates definem a estrutura visual base que os clientes podem personalizar. Cada template é versionado — novas versões não invalidam designs de cartões existentes que referenciam versões anteriores.
+Master catalog of card design templates managed by the **NovoCard** design team. Templates define the base visual structure that customers can customize. Each template is versioned — new versions do not invalidate existing card designs that reference previous versions.
 
 ---
 
-## Esquema e Localização
+## Schema and Location
 
-| Propriedade | Valor |
+| Property | Value |
 |---|---|
-| **Aplicação** | NovoCard |
+| **Application** | NovoCard |
 | **Schema** | `design` |
-| **Tabela** | `designtemplates` |
-| **Tipo** | Estrutura de Dados (Tabela) |
+| **Table** | `design_templates` |
+| **Type** | Data Structure (Table) |
 
 ---
 
-## Estrutura de Colunas
+## Column Structure
 
-### Identificação e Versionamento
+### Identification and Versioning
 
-| Coluna | Tipo | Nulável | Default | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `templateid` | UNIQUEIDENTIFIER | Não | `NEWID()` | Identificador único do template (PK) |
-| `templatename` | NVARCHAR(100) | Não | — | Nome técnico do template |
-| `displayname` | NVARCHAR(100) | Não | — | Nome de exibição para o usuário |
-| `version` | SMALLINT | Não | `1` | Número da versão do template |
-| `description` | NVARCHAR(MAX) | Sim | — | Descrição detalhada do template |
+| `template_id` | UNIQUEIDENTIFIER | No | `NEWID()` | Unique template identifier (PK) |
+| `template_name` | NVARCHAR(100) | No | — | Technical name of the template |
+| `display_name` | NVARCHAR(100) | No | — | Display name shown to the user |
+| `version` | SMALLINT | No | `1` | Template version number |
+| `description` | NVARCHAR(MAX) | Yes | — | Detailed description of the template |
 
-### Compatibilidade
+### Compatibility
 
-| Coluna | Tipo | Nulável | Default | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `compatibleproductclasses` | NVARCHAR(MAX) | Não | `CREDIT,DEBIT,PREPAID` | Classes de produto compatíveis (array JSON) |
-| `compatiblenetworks` | NVARCHAR(MAX) | Não | `VISA,MASTERCARD,ELO,AMEX` | Bandeiras de rede compatíveis (array JSON) |
+| `compatible_product_classes` | NVARCHAR(MAX) | No | `["CREDIT","DEBIT","PREPAID"]` | Compatible product classes (JSON array) |
+| `compatible_networks` | NVARCHAR(MAX) | No | `["VISA","MASTERCARD","DISCOVER","AMEX"]` | Compatible payment networks (JSON array) |
 
-### Propriedades Visuais
+### Visual Properties
 
-| Coluna | Tipo | Nulável | Default | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `primarycolor` | NCHAR(7) | Sim | — | Cor primária em formato HEX (ex: `#1A2B3C`) |
-| `secondarycolor` | NCHAR(7) | Sim | — | Cor secundária em formato HEX |
-| `baseimageurl` | NVARCHAR(500) | Não | — | URL da imagem base do template |
-| `thumbnailurl` | NVARCHAR(500) | Sim | — | URL da miniatura para pré-visualização |
-| `isdarktheme` | BIT | Não | `0` | Indica se o template utiliza tema escuro |
+| `primary_color` | NCHAR(7) | Yes | — | Primary color in HEX format (e.g., `#1A2B3C`) |
+| `secondary_color` | NCHAR(7) | Yes | — | Secondary color in HEX format |
+| `base_image_url` | NVARCHAR(500) | No | — | URL of the template's base image |
+| `thumbnail_url` | NVARCHAR(500) | Yes | — | Thumbnail URL for preview |
+| `is_dark_theme` | BIT | No | `0` | Indicates whether the template uses a dark theme |
 
-### Metadados e Controle
+### Metadata and Control
 
-| Coluna | Tipo | Nulável | Default | Descrição |
+| Column | Type | Nullable | Default | Description |
 |---|---|---|---|---|
-| `category` | NVARCHAR(50) | Sim | — | Categoria do template (valores restritos) |
-| `tags` | NVARCHAR(MAX) | Sim | — | Tags de classificação (array JSON) |
-| `isactive` | BIT | Não | `1` | Indica se o template está ativo para uso |
-| `isdefault` | BIT | Não | `0` | Quando ativo, é atribuído automaticamente na emissão de cartão caso nenhum design seja selecionado |
-| `downloadcount` | INT | Não | `0` | Contador acumulado de cartões que utilizaram este template |
-| `createdby` | NVARCHAR(100) | Sim | — | Usuário responsável pela criação |
-| `createdat` | DATETIMEOFFSET | Não | `SYSDATETIMEOFFSET()` | Data/hora de criação |
-| `updatedat` | DATETIMEOFFSET | Não | `SYSDATETIMEOFFSET()` | Data/hora da última atualização |
+| `category` | NVARCHAR(50) | Yes | — | Template category (restricted values) |
+| `tags` | NVARCHAR(MAX) | Yes | — | Classification tags (JSON array) |
+| `is_active` | BIT | No | `1` | Indicates whether the template is active for use |
+| `is_default` | BIT | No | `0` | When active, automatically assigned at card issuance if no design is selected |
+| `download_count` | INT | No | `0` | Cumulative counter of cards that have used this template |
+| `created_by` | NVARCHAR(100) | Yes | — | User responsible for creation |
+| `created_at` | DATETIMEOFFSET | No | `SYSDATETIMEOFFSET()` | Creation date/time |
+| `updated_at` | DATETIMEOFFSET | No | `SYSDATETIMEOFFSET()` | Last update date/time |
 
 ---
 
-## Categorias Permitidas
+## Allowed Categories
 
-A coluna `category` é restrita aos seguintes valores por meio de constraint `CHECK`:
+The `category` column is restricted to the following values via a `CHECK` constraint:
 
-| Valor |
+| Value |
 |---|
 | CLASSIC |
 | NATURE |
@@ -80,33 +80,33 @@ A coluna `category` é restrita aos seguintes valores por meio de constraint `CH
 
 ## Constraints
 
-| Nome | Tipo | Detalhe |
+| Name | Type | Detail |
 |---|---|---|
-| `pkdesigntemplates` | Primary Key | `templateid` |
-| `uqtemplatenameversion` | Unique | Combinação `templatename` + `version` — garante unicidade por versão |
-| `chktemplatecategory` | Check | Restringe `category` aos valores permitidos |
+| `pk_design_templates` | Primary Key | `template_id` |
+| `uq_template_name_version` | Unique | `template_name` + `version` combination — guarantees uniqueness per version |
+| `chk_template_category` | Check | Restricts `category` to allowed values |
 
 ---
 
-## Índices
+## Indexes
 
-| Nome | Coluna | Finalidade |
+| Name | Column | Purpose |
 |---|---|---|
-| `idxtemplatesactive` | `isactive` | Otimiza consultas filtrando templates ativos/inativos |
-| `idxtemplatescategory` | `category` | Otimiza consultas por categoria de template |
+| `idx_templates_active` | `is_active` | Optimizes queries filtering active/inactive templates |
+| `idx_templates_category` | `category` | Optimizes queries by template category |
 
 ---
 
 ## Insights
 
-- **Versionamento sem quebra**: A combinação única de `templatename` + `version` permite que múltiplas versões de um mesmo template coexistam. Cartões já emitidos continuam referenciando a versão original, evitando impactos visuais retroativos.
+- **Non-breaking versioning**: The unique combination of `template_name` + `version` allows multiple versions of the same template to coexist. Already-issued cards continue referencing the original version, avoiding retroactive visual impact.
 
-- **Template padrão (`isdefault`)**: O mecanismo de template padrão automatiza o fluxo de emissão de cartões quando o cliente não faz uma escolha ativa de design. É importante garantir que apenas um template esteja marcado como padrão por vez (essa regra não é imposta pela estrutura da tabela e deve ser controlada pela aplicação).
+- **Default template (`is_default`)**: The default template mechanism automates card issuance when the customer does not make an active design choice. It is important to ensure that only one template is marked as default at a time (this rule is not enforced by the table structure and must be controlled by the application).
 
-- **Campos JSON para compatibilidade e tags**: As colunas `compatibleproductclasses`, `compatiblenetworks` e `tags` armazenam arrays JSON. Para consultas de filtragem, deve-se utilizar a função `OPENJSON` do SQL Server, o que oferece flexibilidade mas exige atenção ao desempenho em grandes volumes.
+- **JSON fields for compatibility and tags**: The `compatible_product_classes`, `compatible_networks`, and `tags` columns store JSON arrays. For filtering queries, the SQL Server `OPENJSON` function should be used, which provides flexibility but requires attention to performance at large volumes.
 
-- **Ampla cobertura de bandeiras**: Por padrão, os templates são compatíveis com as quatro principais bandeiras (Visa, Mastercard, Elo e Amex) e os três tipos de produto (Crédito, Débito e Pré-pago), cobrindo a maioria dos cenários de emissão.
+- **Broad network coverage**: By default, templates are compatible with four major networks (Visa, Mastercard, Discover, and Amex) and all three product types (Credit, Debit, and Prepaid), covering the majority of issuance scenarios.
 
-- **Métrica de popularidade**: O campo `downloadcount` funciona como indicador de popularidade/adoção de cada template, podendo ser utilizado para rankings, recomendações e decisões de descontinuação.
+- **Popularity metric**: The `download_count` field serves as a popularity/adoption indicator for each template, useful for rankings, recommendations, and discontinuation decisions.
 
-- **Criação condicional**: A tabela só é criada caso ainda não exista (`IF OBJECT_ID ... IS NULL`), garantindo segurança em execuções repetidas do script (idempotência).
+- **Conditional creation**: The table is only created if it does not already exist (`IF OBJECT_ID ... IS NULL`), ensuring safety in repeated script executions (idempotency).

@@ -102,7 +102,7 @@ BEGIN
     INSERT INTO card.card_accounts (
         account_id, card_id, currency, credit_limit, available_balance, balance
     ) VALUES (
-        @v_account_id, @p_card_id, N'BRL', @p_credit_limit,
+        @v_account_id, @p_card_id, N'USD', @p_credit_limit,
         @p_credit_limit, @v_initial_balance
     );
 

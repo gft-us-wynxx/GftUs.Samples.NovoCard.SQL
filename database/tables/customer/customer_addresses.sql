@@ -22,7 +22,7 @@ CREATE TABLE customer.customer_addresses (
     city            NVARCHAR(100)       NOT NULL,
     state           NCHAR(2)            NOT NULL,
     zip_code        NVARCHAR(10)        NOT NULL,
-    country         NCHAR(2)            NOT NULL DEFAULT N'BR',
+    country         NCHAR(2)            NOT NULL DEFAULT N'US',
     -- Marks the default contact/delivery address. Only one primary per customer is expected
     is_primary      BIT                 NOT NULL DEFAULT 0,
     -- Marks the address used for card statement delivery and billing correspondence

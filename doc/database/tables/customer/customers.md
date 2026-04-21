@@ -1,99 +1,98 @@
-# Documentação — `customer.customers`
+# Documentation — `customer.customers`
 
-## Aplicação
+## Application
 
 **NovoCard**
 
 ---
 
-## Visão Geral
+## Overview
 
-Estrutura de dados que representa o **cadastro principal de clientes** da plataforma NovoCard. Cada registro corresponde a uma pessoa física que realizou o processo de onboarding na plataforma. Um cliente pode possuir múltiplos cartões (crédito, débito e/ou pré-pago) vinculados ao seu cadastro.
+Data structure representing the **core customer registry** of the NovoCard platform. Each record corresponds to a natural person who completed the onboarding process. A customer can hold multiple cards (credit, debit, and/or prepaid) linked to their registration.
 
 ---
 
-## Esquema e Tabela
+## Schema and Table
 
-| Esquema    | Tabela      |
+| Schema     | Table       |
 |------------|-------------|
 | `customer` | `customers` |
 
 ---
 
-## Estrutura de Dados
+## Data Structure
 
-### Colunas
+### Columns
 
-| Coluna | Tipo | Obrigatório | Valor Padrão | Descrição |
-|---|---|---|---|---|
-| `customerid` | `UNIQUEIDENTIFIER` | Sim | `NEWID()` | Identificador único do cliente (chave primária). |
-| `firstname` | `NVARCHAR(100)` | Sim | — | Primeiro nome do cliente. |
-| `lastname` | `NVARCHAR(100)` | Sim | — | Sobrenome do cliente. |
-| `fullname` | Coluna computada (persistida) | — | `firstname + ' ' + lastname` | Nome completo, gerado automaticamente para indexação e exibição. |
-| `email` | `NVARCHAR(255)` | Sim | — | Endereço de e-mail do cliente. Deve ser único na base. |
-| `phone` | `NVARCHAR(20)` | Não | — | Número de telefone. |
-| `dateofbirth` | `DATE` | Sim | — | Data de nascimento. |
-| `taxpayerid` | `NVARCHAR(20)` | Sim | — | CPF (para clientes brasileiros) ou identificador fiscal nacional equivalente. Deve ser único. |
-| `nationality` | `NCHAR(2)` | Sim | `BR` | Código de nacionalidade (padrão ISO de 2 caracteres). |
-| `gender` | `NCHAR(1)` | Não | — | Gênero autodeclarado. |
-| `incomerange` | `NVARCHAR(30)` | Não | — | Faixa de renda mensal autodeclarada, utilizada no cálculo de limite de crédito. |
-| `creditscore` | `SMALLINT` | Não | — | Score interno NovoCard (0–1000), derivado de dados de bureau de crédito e sinais comportamentais. |
-| `kycstatus` | `NVARCHAR(20)` | Sim | `PENDING` | Estado da verificação KYC (Know Your Customer). Cartões só podem ser emitidos quando o status é **APPROVED**. |
-| `status` | `NVARCHAR(20)` | Sim | `ACTIVE` | Status geral do cadastro do cliente na plataforma. |
-| `onboardedat` | `DATETIMEOFFSET` | Sim | `SYSDATETIMEOFFSET()` | Data/hora em que o cliente concluiu o onboarding. |
-| `lastloginat` | `DATETIMEOFFSET` | Não | — | Data/hora do último login do cliente. |
-| `createdat` | `DATETIMEOFFSET` | Sim | `SYSDATETIMEOFFSET()` | Data/hora de criação do registro. |
-| `updatedat` | `DATETIMEOFFSET` | Sim | `SYSDATETIMEOFFSET()` | Data/hora da última atualização do registro. |
-
----
-
-### Valores Permitidos (Constraints de Domínio)
-
-| Coluna | Valores Aceitos |
-|---|---|
-| `gender` | `M` (Masculino), `F` (Feminino), `X` (Outro/Não-binário) |
-| `incomerange` | `BELOW1K`, `1K3K`, `3K5K`, `5K10K`, `10K20K`, `ABOVE20K` |
-| `creditscore` | Inteiro entre **0** e **1000** |
-| `kycstatus` | `PENDING`, `INREVIEW`, `APPROVED`, `REJECTED` |
-| `status` | `ACTIVE`, `SUSPENDED`, `CLOSED`, `BLOCKED` |
+| Column          | Type                      | Required | Default                  | Description                                                                                      |
+|-----------------|---------------------------|----------|--------------------------|--------------------------------------------------------------------------------------------------|
+| `customer_id`   | `UNIQUEIDENTIFIER`        | Yes      | `NEWID()`                | Unique customer identifier (primary key).                                                        |
+| `first_name`    | `NVARCHAR(100)`           | Yes      | —                        | Customer's first name.                                                                           |
+| `last_name`     | `NVARCHAR(100)`           | Yes      | —                        | Customer's last name.                                                                            |
+| `full_name`     | Computed column (persisted)| —       | `first_name + ' ' + last_name` | Full name, automatically generated for indexing and display.                            |
+| `email`         | `NVARCHAR(255)`           | Yes      | —                        | Customer's email address. Must be unique.                                                        |
+| `phone`         | `NVARCHAR(20)`            | No       | —                        | Phone number.                                                                                    |
+| `date_of_birth` | `DATE`                    | Yes      | —                        | Date of birth.                                                                                   |
+| `taxpayer_id`   | `NVARCHAR(20)`            | Yes      | —                        | SSN or equivalent national tax identifier. Must be unique.                                       |
+| `nationality`   | `NCHAR(2)`                | Yes      | `US`                     | Nationality code (2-character ISO standard).                                                     |
+| `gender`        | `NCHAR(1)`                | No       | —                        | Self-declared gender.                                                                            |
+| `income_range`  | `NVARCHAR(30)`            | No       | —                        | Self-declared monthly income bracket, used in credit limit calculation.                          |
+| `credit_score`  | `SMALLINT`                | No       | —                        | Internal NovoCard score (0–1000), derived from bureau data and behavioral signals.               |
+| `kyc_status`    | `NVARCHAR(20)`            | Yes      | `PENDING`                | Know Your Customer verification state. Cards can only be issued when status is **APPROVED**.     |
+| `status`        | `NVARCHAR(20)`            | Yes      | `ACTIVE`                 | General status of the customer's registration on the platform.                                   |
+| `onboarded_at`  | `DATETIMEOFFSET`          | Yes      | `SYSDATETIMEOFFSET()`    | Date/time when the customer completed onboarding.                                                |
+| `last_login_at` | `DATETIMEOFFSET`          | No       | —                        | Date/time of the customer's last login.                                                          |
+| `created_at`    | `DATETIMEOFFSET`          | Yes      | `SYSDATETIMEOFFSET()`    | Record creation timestamp.                                                                       |
+| `updated_at`    | `DATETIMEOFFSET`          | Yes      | `SYSDATETIMEOFFSET()`    | Last update timestamp.                                                                           |
 
 ---
 
-### Restrições de Unicidade
+### Allowed Values (Domain Constraints)
 
-| Constraint | Coluna | Finalidade |
-|---|---|---|
-| `uqcustomersemail` | `email` | Garante que cada e-mail esteja associado a um único cliente. |
-| `uqcustomerstaxpayerid` | `taxpayerid` | Garante que cada CPF/identificador fiscal esteja associado a um único cliente. |
-
----
-
-### Índices
-
-| Índice | Coluna(s) | Ordenação | Finalidade |
-|---|---|---|---|
-| `idxcustomersemail` | `email` | ASC (padrão) | Busca rápida por e-mail. |
-| `idxcustomerstaxpayerid` | `taxpayerid` | ASC (padrão) | Busca rápida por CPF/identificador fiscal. |
-| `idxcustomersstatus` | `status` | ASC (padrão) | Filtragem por status do cadastro. |
-| `idxcustomerskycstatus` | `kycstatus` | ASC (padrão) | Filtragem por estado de verificação KYC. |
-| `idxcustomerscreatedat` | `createdat` | DESC | Listagem de clientes mais recentes primeiro. |
+| Column        | Accepted Values                                                               |
+|---------------|-------------------------------------------------------------------------------|
+| `gender`      | `M` (Male), `F` (Female), `X` (Other/Non-binary)                             |
+| `income_range`| `BELOW_1K`, `1K_3K`, `3K_5K`, `5K_10K`, `10K_20K`, `ABOVE_20K`              |
+| `credit_score`| Integer between **0** and **1000**                                            |
+| `kyc_status`  | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`                                |
+| `status`      | `ACTIVE`, `SUSPENDED`, `CLOSED`, `BLOCKED`                                    |
 
 ---
 
-## Regras de Negócio
+### Uniqueness Constraints
 
-1. **Emissão de cartões condicionada ao KYC**: Nenhum cartão (crédito, débito ou pré-pago) pode ser emitido para um cliente cujo `kycstatus` não esteja como `APPROVED`.
-2. **Limite de crédito baseado em renda**: A faixa de renda autodeclarada (`incomerange`) é um dos insumos para o cálculo do limite de crédito do cliente.
-3. **Score interno**: O `creditscore` é uma pontuação proprietária da NovoCard (escala de 0 a 1000), alimentada por dados de bureaus de crédito e sinais comportamentais do próprio cliente na plataforma.
-4. **Criação condicional**: A tabela só é criada caso ainda não exista no banco de dados, evitando erros em execuções repetidas do script.
+| Constraint               | Column        | Purpose                                                      |
+|--------------------------|---------------|--------------------------------------------------------------|
+| `uq_customers_email`     | `email`       | Ensures each email is associated with exactly one customer.  |
+| `uq_customers_taxpayer_id` | `taxpayer_id` | Ensures each tax ID is associated with exactly one customer. |
+
+---
+
+### Indexes
+
+| Index                       | Column(s)     | Order       | Purpose                                |
+|-----------------------------|---------------|-------------|----------------------------------------|
+| `idx_customers_email`       | `email`       | ASC (default)| Fast lookup by email.                 |
+| `idx_customers_taxpayer_id` | `taxpayer_id` | ASC (default)| Fast lookup by tax identifier.        |
+| `idx_customers_status`      | `status`      | ASC (default)| Filter by registration status.        |
+| `idx_customers_kyc_status`  | `kyc_status`  | ASC (default)| Filter by KYC verification state.     |
+| `idx_customers_created_at`  | `created_at`  | DESC         | List most recently created customers first. |
+
+---
+
+## Business Rules
+
+1. **Card issuance conditional on KYC**: No card (credit, debit, or prepaid) can be issued to a customer whose `kyc_status` is not `APPROVED`.
+2. **Credit limit based on income**: The self-declared income bracket (`income_range`) is one of the inputs for calculating the customer's credit limit.
+3. **Internal score**: `credit_score` is a proprietary NovoCard score (0–1000 scale), fed by credit bureau data and the customer's own behavioral signals on the platform.
+4. **Conditional creation**: The table is only created if it does not already exist, preventing errors on repeated script executions.
 
 ---
 
 ## Insights
 
-- A nacionalidade padrão `BR` e o uso do CPF como identificador fiscal indicam que o mercado primário da NovoCard é o **Brasil**, embora a estrutura permita clientes de outras nacionalidades.
-- O campo `lastloginat` sendo opcional sugere que existem clientes cadastrados que ainda não realizaram login (possivelmente em processo de onboarding ou com cadastro criado por canais alternativos).
-- A separação entre `onboardedat` e `createdat` indica que o registro técnico pode ser criado em momento diferente da conclusão do onboarding, sugerindo um fluxo de cadastro em múltiplas etapas.
-- A existência de índice descendente em `createdat` evidencia consultas frequentes que priorizam clientes mais recentes (dashboards, filas de análise, etc.).
-- Os status `SUSPENDED` e `BLOCKED` representam estados distintos de restrição, o que pode indicar diferentes níveis de severidade ou motivos de bloqueio (ex.: inadimplência vs. fraude).
-- A coluna `fullname` persistida otimiza consultas de busca e exibição, eliminando a necessidade de concatenação em tempo de execução.
+- The `last_login_at` field being optional suggests that registered customers may not have yet logged in (possibly still in onboarding or enrolled through alternative channels).
+- The separation between `onboarded_at` and `created_at` indicates that the technical record may be created at a different moment from onboarding completion, suggesting a multi-step registration flow.
+- The descending index on `created_at` reflects frequent queries that prioritize the most recently created customers (dashboards, analysis queues, etc.).
+- The `SUSPENDED` and `BLOCKED` statuses represent distinct levels of restriction, which may indicate different severity levels or block reasons (e.g., delinquency vs. fraud).
+- The persisted `full_name` column optimizes search and display queries, eliminating the need for runtime concatenation.

@@ -1,80 +1,79 @@
-# Documentação: customer.customeraddresses
+# Documentation: customer.customer_addresses
 
-## Aplicação
+## Application
 **NovoCard**
 
-## Visão Geral
+## Overview
 
-Estrutura de dados responsável por armazenar os endereços postais e de cobrança associados a cada cliente. Um cliente pode possuir múltiplos endereços cadastrados, sendo que exatamente um deve estar marcado como **primário** (endereço principal de contato/entrega) e um como **endereço de cobrança** (utilizado para envio de faturas do cartão e correspondências de billing).
+Data structure responsible for storing postal and billing addresses associated with each customer. A customer can have multiple registered addresses; exactly one must be flagged as **primary** (main contact/delivery address) and one as **billing** (used for card statement delivery and billing correspondence).
 
-## Tipo
+## Type
 
-**Estrutura de Dados** (Tabela)
+**Data Structure** (Table)
 
-## Esquema e Objeto
+## Schema and Object
 
-| Esquema | Tabela |
-|---|---|
-| `customer` | `customeraddresses` |
+| Schema     | Table                |
+|------------|----------------------|
+| `customer` | `customer_addresses` |
 
-## Estrutura de Colunas
+## Column Structure
 
-| Coluna | Tipo de Dado | Obrigatório | Valor Padrão | Descrição |
-|---|---|---|---|---|
-| `addressid` | UNIQUEIDENTIFIER | Sim | `NEWID()` | Identificador único do endereço (chave primária) |
-| `customerid` | UNIQUEIDENTIFIER | Sim | — | Identificador do cliente proprietário do endereço |
-| `addresstype` | NVARCHAR(20) | Sim | — | Tipo do endereço: Residencial, Cobrança, Comercial ou Outro |
-| `street` | NVARCHAR(255) | Sim | — | Logradouro |
-| `number` | NVARCHAR(20) | Sim | — | Número do endereço |
-| `complement` | NVARCHAR(100) | Não | — | Complemento (apartamento, bloco, sala, etc.) |
-| `neighborhood` | NVARCHAR(100) | Não | — | Bairro |
-| `city` | NVARCHAR(100) | Sim | — | Cidade |
-| `state` | NCHAR(2) | Sim | — | Unidade federativa (sigla com 2 caracteres) |
-| `zipcode` | NVARCHAR(10) | Sim | — | Código postal (CEP) |
-| `country` | NCHAR(2) | Sim | `'BR'` | Código do país (padrão ISO, default Brasil) |
-| `isprimary` | BIT | Sim | `0` | Indica se é o endereço principal de contato/entrega do cliente |
-| `isbilling` | BIT | Sim | `0` | Indica se é o endereço utilizado para envio de fatura e correspondência de cobrança |
-| `verifiedat` | DATETIMEOFFSET | Não | — | Data/hora em que o endereço foi confirmado via verificação postal ou envio de documento |
-| `createdat` | DATETIMEOFFSET | Sim | `SYSDATETIMEOFFSET()` | Data/hora de criação do registro |
-| `updatedat` | DATETIMEOFFSET | Sim | `SYSDATETIMEOFFSET()` | Data/hora da última atualização do registro |
+| Column         | Data Type        | Required | Default               | Description                                                                         |
+|----------------|------------------|----------|-----------------------|-------------------------------------------------------------------------------------|
+| `address_id`   | UNIQUEIDENTIFIER | Yes      | `NEWID()`             | Unique address identifier (primary key)                                             |
+| `customer_id`  | UNIQUEIDENTIFIER | Yes      | —                     | Identifier of the customer who owns the address                                     |
+| `address_type` | NVARCHAR(20)     | Yes      | —                     | Address type: Residential, Billing, Commercial, or Other                            |
+| `street`       | NVARCHAR(255)    | Yes      | —                     | Street name                                                                         |
+| `number`       | NVARCHAR(20)     | Yes      | —                     | Street number                                                                       |
+| `complement`   | NVARCHAR(100)    | No       | —                     | Unit, suite, apartment, etc.                                                        |
+| `neighborhood` | NVARCHAR(100)    | No       | —                     | Neighborhood or district                                                            |
+| `city`         | NVARCHAR(100)    | Yes      | —                     | City                                                                                |
+| `state`        | NCHAR(2)         | Yes      | —                     | State or province (2-character code)                                                |
+| `zip_code`     | NVARCHAR(10)     | Yes      | —                     | Postal / ZIP code                                                                   |
+| `country`      | NCHAR(2)         | Yes      | `'US'`                | Country code (ISO 2-character, default United States)                               |
+| `is_primary`   | BIT              | Yes      | `0`                   | Marks the default contact/delivery address. Only one primary per customer is expected |
+| `is_billing`   | BIT              | Yes      | `0`                   | Marks the address used for statement delivery and billing correspondence             |
+| `verified_at`  | DATETIMEOFFSET   | No       | —                     | Date/time when the address was confirmed via postal verification or document upload |
+| `created_at`   | DATETIMEOFFSET   | Yes      | `SYSDATETIMEOFFSET()` | Record creation timestamp                                                           |
+| `updated_at`   | DATETIMEOFFSET   | Yes      | `SYSDATETIMEOFFSET()` | Last update timestamp                                                               |
 
-## Valores Permitidos para Tipo de Endereço
+## Allowed Values for Address Type
 
-| Valor | Significado |
-|---|---|
-| `RESIDENTIAL` | Endereço residencial |
-| `BILLING` | Endereço de cobrança |
-| `COMMERCIAL` | Endereço comercial |
-| `OTHER` | Outro tipo de endereço |
+| Value         | Meaning              |
+|---------------|----------------------|
+| `RESIDENTIAL` | Residential address  |
+| `BILLING`     | Billing address      |
+| `COMMERCIAL`  | Commercial address   |
+| `OTHER`       | Other address type   |
 
-## Relacionamentos
+## Relationships
 
-| Tipo | Tabela Referenciada | Coluna Local | Coluna Referenciada | Comportamento de Exclusão |
-|---|---|---|---|---|
-| Chave Estrangeira | `customer.customers` | `customerid` | `customerid` | Exclusão em cascata (ao remover o cliente, todos os seus endereços são removidos automaticamente) |
+| Type           | Referenced Table       | Local Column  | Referenced Column | Delete Behavior                                                           |
+|----------------|------------------------|---------------|-------------------|---------------------------------------------------------------------------|
+| Foreign Key    | `customer.customers`   | `customer_id` | `customer_id`     | Cascade delete (removing a customer automatically removes all their addresses) |
 
-## Restrições (Constraints)
+## Constraints
 
-| Nome | Tipo | Descrição |
-|---|---|---|
-| `pk_customeraddresses` | Primary Key | Garante unicidade do `addressid` |
-| `fk_addresses_customer` | Foreign Key | Vincula o endereço a um cliente existente |
-| `chk_addresstype` | Check | Restringe os valores de `addresstype` aos quatro tipos permitidos |
+| Name                    | Type        | Description                                              |
+|-------------------------|-------------|----------------------------------------------------------|
+| `pk_customer_addresses` | Primary Key | Guarantees uniqueness of `address_id`                   |
+| `fk_addresses_customer` | Foreign Key | Links the address to an existing customer               |
+| `chk_address_type`      | Check       | Restricts `address_type` to the four allowed types       |
 
-## Índices
+## Indexes
 
-| Nome do Índice | Coluna(s) | Finalidade |
-|---|---|---|
-| `idx_addresses_customerid` | `customerid` | Otimiza consultas de endereços por cliente |
-| `idx_addresses_type` | `addresstype` | Otimiza filtros por tipo de endereço |
-| `idx_addresses_zipcode` | `zipcode` | Otimiza buscas por CEP |
+| Index Name                  | Column(s)      | Purpose                                        |
+|-----------------------------|----------------|------------------------------------------------|
+| `idx_addresses_customer_id` | `customer_id`  | Optimizes queries for addresses by customer    |
+| `idx_addresses_type`        | `address_type` | Optimizes filtering by address type            |
+| `idx_addresses_zip_code`    | `zip_code`     | Optimizes lookups by postal/ZIP code           |
 
 ## Insights
 
-- A tabela é criada de forma condicional (somente se ainda não existir), garantindo segurança em execuções repetidas do script de deploy.
-- O uso de `UNIQUEIDENTIFIER` com `NEWID()` como chave primária indica uma arquitetura preparada para ambientes distribuídos, onde a geração de IDs não depende de sequências centralizadas.
-- O país padrão é **Brasil (`BR`)**, indicando que a aplicação NovoCard tem foco no mercado brasileiro, mas suporta endereços internacionais.
-- A exclusão em cascata (`ON DELETE CASCADE`) na chave estrangeira significa que a remoção de um cliente automaticamente elimina todos os seus endereços, simplificando a gestão do ciclo de vida dos dados.
-- A regra de negócio de que apenas **um endereço deve ser primário** e **um deve ser de cobrança** por cliente **não é imposta a nível de banco de dados** — não há índice único filtrado ou trigger para garantir essa restrição. Essa validação precisa ser controlada pela camada de aplicação.
-- O campo `verifiedat` indica a existência de um processo de verificação de endereço (via correspondência postal ou upload de documento comprobatório), relevante para compliance e prevenção a fraudes no contexto de cartões.
-- Não há mecanismo automático de atualização do campo `updatedat` (como um trigger); a aplicação deve gerenciar essa atualização a cada modificação do registro.
+- The table is created conditionally (only if it does not already exist), ensuring safety in repeated deployment script executions.
+- Using `UNIQUEIDENTIFIER` with `NEWID()` as the primary key indicates an architecture prepared for distributed environments, where ID generation does not depend on centralized sequences.
+- Cascade delete (`ON DELETE CASCADE`) on the foreign key means removing a customer automatically eliminates all their addresses, simplifying data lifecycle management.
+- The business rule that only **one address should be primary** and **one should be billing** per customer **is not enforced at the database level** — there is no filtered unique index or trigger to guarantee this constraint. This validation must be controlled by the application layer.
+- The `verified_at` field indicates the existence of an address verification process (via postal correspondence or document upload), relevant for compliance and fraud prevention in the card context.
+- There is no automatic mechanism to update `updated_at` (such as a trigger); the application must manage this update with each record modification.

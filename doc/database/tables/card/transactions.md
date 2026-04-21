@@ -1,128 +1,126 @@
-
-
 # card.transactions
 
-## Visão Geral
+## Overview
 
-Estrutura de dados responsável por armazenar os registros de transações financeiras realizadas com cartões na aplicação **NovoCard**. Contempla toda a atividade de cartões, incluindo compras, estornos, saques, cargas de saldo em cartões pré-pagos, taxas, juros e chargebacks. Cada registro representa um único evento de autorização ou liquidação (posting).
+Data structure responsible for storing financial transaction records made with cards in the **NovoCard** application. Covers all card activity, including purchases, refunds, cash withdrawals, prepaid balance loads, fees, reversals, chargebacks, and interest. Each record represents a single authorization or settlement (posting) event.
 
 ---
 
-## Ciclo de Vida da Transação
+## Transaction Lifecycle
 
-| Estado | Descrição |
+| State | Description |
 |---|---|
-| **AUTHORIZED** | Reserva (hold) realizada no saldo/limite do cartão |
-| **POSTED** | Transação compensada e liquidada |
-| **REVERSED** | Estorno completo realizado antes da liquidação |
-| **DECLINED** | Transação negada |
-| **CANCELLED** | Transação cancelada |
-| **DISPUTED** | Transação em disputa/contestação |
+| **AUTHORIZED** | Hold placed on the card balance/limit |
+| **POSTED** | Transaction cleared and settled |
+| **REVERSED** | Full reversal completed before settlement |
+| **DECLINED** | Transaction denied |
+| **CANCELLED** | Transaction cancelled |
+| **DISPUTED** | Transaction under dispute/contestation |
 
-> Transações autorizadas migram para o estado **POSTED** após o processo de clearing (compensação).
-
----
-
-## Estrutura de Dados
-
-### Identificação da Transação
-
-| Coluna | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| `transactionid` | UNIQUEIDENTIFIER | Sim | Identificador único da transação (PK, gerado automaticamente) |
-| `cardid` | UNIQUEIDENTIFIER | Sim | Referência ao cartão utilizado (FK → `card.cards`) |
-| `accountid` | UNIQUEIDENTIFIER | Sim | Referência à conta do cartão (FK → `card.cardaccounts`) |
-| `authorizationcode` | NVARCHAR(20) | Não | Código de autorização retornado pela bandeira |
-| `externalreference` | NVARCHAR(100) | Não | Referência externa para integração com sistemas terceiros |
-
-### Tipo de Transação
-
-| Coluna | Tipo | Obrigatório | Valores Permitidos |
-|---|---|---|---|
-| `transactiontype` | NVARCHAR(30) | Sim | PURCHASE, REFUND, CASH_WITHDRAWAL, BALANCE_LOAD, FEE, REVERSAL, CHARGEBACK, INTEREST, CASH_ADVANCE |
-
-### Valores e Câmbio
-
-| Coluna | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| `amount` | DECIMAL(15,2) | Sim | Valor final da transação na moeda de cobrança |
-| `originalamount` | DECIMAL(15,2) | Não | Valor original na moeda do estabelecimento (antes da conversão cambial). Nulo para transações domésticas |
-| `originalcurrency` | NCHAR(3) | Não | Moeda original da transação (código ISO) |
-| `billingcurrency` | NCHAR(3) | Sim | Moeda de cobrança (padrão: **BRL**) |
-| `exchangerate` | DECIMAL(12,6) | Não | Taxa de câmbio aplicada na conversão |
-
-### Dados do Estabelecimento
-
-| Coluna | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| `merchantname` | NVARCHAR(255) | Não | Nome do estabelecimento |
-| `merchantid` | NVARCHAR(50) | Não | Identificador do estabelecimento |
-| `merchantcategorycode` | CHAR(4) | Não | Código de categoria do estabelecimento conforme ISO 18245 (MCC) |
-| `merchantcity` | NVARCHAR(100) | Não | Cidade do estabelecimento |
-| `merchantcountry` | NCHAR(2) | Não | País do estabelecimento (código ISO de 2 caracteres) |
-
-### Estado e Características da Transação
-
-| Coluna | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| `status` | NVARCHAR(20) | Sim | Estado atual da transação (padrão: AUTHORIZED) |
-| `declinereason` | NVARCHAR(100) | Não | Motivo da recusa, quando aplicável |
-| `isonline` | BIT | Sim | Indica se a transação foi realizada online |
-| `isinternational` | BIT | Sim | Indica se a transação é internacional |
-| `iscontactless` | BIT | Sim | Indica se a transação foi por aproximação (contactless) |
-| `installments` | SMALLINT | Sim | Número de parcelas (1 a 24). Valor 1 indica transação à vista |
-
-### Datas e Timestamps
-
-| Coluna | Tipo | Obrigatório | Descrição |
-|---|---|---|---|
-| `authorizedat` | DATETIMEOFFSET | Sim | Data/hora da autorização |
-| `postedat` | DATETIMEOFFSET | Não | Data/hora da liquidação |
-| `reversedat` | DATETIMEOFFSET | Não | Data/hora do estorno |
-| `createdat` | DATETIMEOFFSET | Sim | Data/hora de criação do registro |
+> Authorized transactions move to the **POSTED** state after the clearing process.
 
 ---
 
-## Relacionamentos
+## Data Structure
 
-| Chave Estrangeira | Tabela Referenciada | Coluna |
+### Transaction Identification
+
+| Column | Type | Required | Description |
+|---|---|---|---|
+| `transaction_id` | UNIQUEIDENTIFIER | Yes | Unique transaction identifier (PK, auto-generated) |
+| `card_id` | UNIQUEIDENTIFIER | Yes | Reference to the card used (FK → `card.cards`) |
+| `account_id` | UNIQUEIDENTIFIER | Yes | Reference to the card account (FK → `card.card_accounts`) |
+| `authorization_code` | NVARCHAR(20) | No | Authorization code returned by the network |
+| `external_reference` | NVARCHAR(100) | No | External reference for integration with third-party systems |
+
+### Transaction Type
+
+| Column | Type | Required | Allowed Values |
+|---|---|---|---|
+| `transaction_type` | NVARCHAR(30) | Yes | PURCHASE, REFUND, CASH_WITHDRAWAL, BALANCE_LOAD, FEE, REVERSAL, CHARGEBACK, INTEREST, CASH_ADVANCE |
+
+### Amounts and Exchange
+
+| Column | Type | Required | Description |
+|---|---|---|---|
+| `amount` | DECIMAL(15,2) | Yes | Final transaction amount in the billing currency |
+| `original_amount` | DECIMAL(15,2) | No | Original amount in the merchant's currency (before conversion). Null for domestic transactions |
+| `original_currency` | NCHAR(3) | No | Original transaction currency (ISO code) |
+| `billing_currency` | NCHAR(3) | Yes | Billing currency (default: **USD**) |
+| `exchange_rate` | DECIMAL(12,6) | No | Exchange rate applied in the conversion |
+
+### Merchant Data
+
+| Column | Type | Required | Description |
+|---|---|---|---|
+| `merchant_name` | NVARCHAR(255) | No | Merchant name |
+| `merchant_id` | NVARCHAR(50) | No | Merchant identifier |
+| `merchant_category_code` | CHAR(4) | No | Merchant category code per ISO 18245 (MCC) |
+| `merchant_city` | NVARCHAR(100) | No | Merchant city |
+| `merchant_country` | NCHAR(2) | No | Merchant country (2-character ISO code) |
+
+### Transaction State and Characteristics
+
+| Column | Type | Required | Description |
+|---|---|---|---|
+| `status` | NVARCHAR(20) | Yes | Current transaction state (default: AUTHORIZED) |
+| `decline_reason` | NVARCHAR(100) | No | Decline reason, when applicable |
+| `is_online` | BIT | Yes | Indicates whether the transaction was conducted online |
+| `is_international` | BIT | Yes | Indicates whether the transaction is international |
+| `is_contactless` | BIT | Yes | Indicates whether the transaction was contactless |
+| `installments` | SMALLINT | Yes | Number of installments (1 to 24). Value 1 indicates a single-payment transaction |
+
+### Dates and Timestamps
+
+| Column | Type | Required | Description |
+|---|---|---|---|
+| `authorized_at` | DATETIMEOFFSET | Yes | Authorization date/time |
+| `posted_at` | DATETIMEOFFSET | No | Settlement date/time |
+| `reversed_at` | DATETIMEOFFSET | No | Reversal date/time |
+| `created_at` | DATETIMEOFFSET | Yes | Record creation date/time |
+
+---
+
+## Relationships
+
+| Foreign Key | Referenced Table | Column |
 |---|---|---|
-| `fktransactionscard` | `card.cards` | `cardid` |
-| `fktransactionsaccount` | `card.cardaccounts` | `accountid` |
+| `fk_transactions_card` | `card.cards` | `card_id` |
+| `fk_transactions_account` | `card.card_accounts` | `account_id` |
 
 ---
 
-## Índices
+## Indexes
 
-| Índice | Coluna(s) | Finalidade |
+| Index | Column(s) | Purpose |
 |---|---|---|
-| `pktransactions` | `transactionid` | Chave primária |
-| `idxtransactionscardid` | `cardid` | Consultas por cartão |
-| `idxtransactionsaccountid` | `accountid` | Consultas por conta |
-| `idxtransactionsstatus` | `status` | Filtragem por estado da transação |
-| `idxtransactionsauthorizedat` | `authorizedat` (DESC) | Consultas ordenadas por data de autorização (mais recentes primeiro) |
-| `idxtransactionsmerchantcode` | `merchantcategorycode` | Análises por categoria de estabelecimento (MCC) |
-| `idxtransactionstype` | `transactiontype` | Filtragem por tipo de transação |
+| `pk_transactions` | `transaction_id` | Primary key |
+| `idx_transactions_card_id` | `card_id` | Queries by card |
+| `idx_transactions_account_id` | `account_id` | Queries by account |
+| `idx_transactions_status` | `status` | Filtering by transaction state |
+| `idx_transactions_authorized_at` | `authorized_at` (DESC) | Queries ordered by authorization date (most recent first) |
+| `idx_transactions_merchant_code` | `merchant_category_code` | Analysis by merchant category (MCC) |
+| `idx_transactions_type` | `transaction_type` | Filtering by transaction type |
 
 ---
 
-## Regras de Negócio e Validações
+## Business Rules and Validations
 
-| Regra | Descrição |
+| Rule | Description |
 |---|---|
-| `chktxntype` | Tipo de transação restrito a 9 valores pré-definidos |
-| `chktxnstatus` | Status restrito a 6 estados válidos |
-| `chktxninstallments` | Parcelamento limitado entre 1 e 24 parcelas |
-| Criação condicional | A tabela só é criada se não existir previamente no banco de dados |
+| `chk_txn_type` | Transaction type restricted to 9 predefined values |
+| `chk_txn_status` | Status restricted to 6 valid states |
+| `chk_txn_installments` | Installments limited between 1 and 24 |
+| Conditional creation | The table is only created if it does not already exist in the database |
 
 ---
 
 ## Insights
 
-- **Parcelamento brasileiro (parcelado):** O campo `installments` suporta de 1 a 24 parcelas, aderente ao modelo de parcelamento amplamente utilizado no mercado brasileiro.
-- **Suporte a transações internacionais:** A estrutura contempla conversão cambial completa com moeda original, moeda de cobrança e taxa de câmbio, permitindo rastreabilidade total do valor cobrado ao portador.
-- **Classificação MCC (ISO 18245):** O código de categoria do estabelecimento é utilizado para análises de gastos (spending analytics) e aplicação de regras de limite por categoria.
-- **Indexação orientada a performance:** A presença de índices em colunas de alta cardinalidade de consulta (cartão, conta, status, data, tipo e MCC) indica um volume transacional elevado e necessidade de respostas rápidas em consultas operacionais e analíticas.
-- **Modalidades de captura:** Os flags `isonline`, `isinternational` e `iscontactless` permitem segmentação detalhada do canal de captura, essencial para análise de fraude e comportamento de uso.
-- **Moeda padrão BRL:** A moeda de cobrança padrão é o Real Brasileiro, confirmando que a aplicação é voltada ao mercado nacional com suporte a operações internacionais.
-- **Rastreabilidade temporal completa:** Os campos de data (`authorizedat`, `postedat`, `reversedat`, `createdat`) permitem acompanhar todo o ciclo de vida da transação com precisão de fuso horário (DATETIMEOFFSET).
+- **Installment plan support**: The `installments` field supports 1 to 24 installments, enabling deferred payment plans commonly used in credit card products.
+- **International transaction support**: The structure supports full currency conversion with original currency, billing currency, and exchange rate, enabling complete traceability of the amount charged to the cardholder.
+- **MCC classification (ISO 18245)**: The merchant category code is used for spending analytics and applying category-based limit rules.
+- **Performance-oriented indexing**: Indexes on high-cardinality query columns (card, account, status, date, type, and MCC) reflect high transaction volumes and the need for fast responses in both operational and analytical queries.
+- **Capture channel flags**: The `is_online`, `is_international`, and `is_contactless` flags enable detailed segmentation of the capture channel, essential for fraud analysis and usage behavior.
+- **Default currency USD**: The default billing currency is US Dollar, confirming that the application targets the US market with support for international operations.
+- **Complete temporal traceability**: The date fields (`authorized_at`, `posted_at`, `reversed_at`, `created_at`) allow tracking the full transaction lifecycle with time-zone precision (DATETIMEOFFSET).

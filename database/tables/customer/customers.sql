@@ -16,9 +16,9 @@ CREATE TABLE customer.customers (
     email               NVARCHAR(255)       NOT NULL CONSTRAINT uq_customers_email UNIQUE,
     phone               NVARCHAR(20)        NULL,
     date_of_birth       DATE                NOT NULL,
-    -- CPF for Brazilian customers or equivalent national tax identifier
+    -- SSN or equivalent national tax identifier
     taxpayer_id         NVARCHAR(20)        NOT NULL CONSTRAINT uq_customers_taxpayer_id UNIQUE,
-    nationality         NCHAR(2)            NOT NULL DEFAULT N'BR',
+    nationality         NCHAR(2)            NOT NULL DEFAULT N'US',
     gender              NCHAR(1)            NULL
                             CONSTRAINT chk_customers_gender CHECK (gender IN (N'M', N'F', N'X')),
     -- Self-declared monthly income bracket used for credit limit calculation

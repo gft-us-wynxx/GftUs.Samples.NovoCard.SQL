@@ -25,7 +25,7 @@ CREATE TABLE design.design_templates (
 
     -- Compatibility stored as JSON arrays; use OPENJSON() to filter
     compatible_product_classes  NVARCHAR(MAX)       NOT NULL DEFAULT N'["CREDIT","DEBIT","PREPAID"]',
-    compatible_networks         NVARCHAR(MAX)       NOT NULL DEFAULT N'["VISA","MASTERCARD","ELO","AMEX"]',
+    compatible_networks         NVARCHAR(MAX)       NOT NULL DEFAULT N'["VISA","MASTERCARD","DISCOVER","AMEX"]',
 
     -- Visual properties
     primary_color               NCHAR(7)            NULL,   -- HEX e.g. #1A2B3C
