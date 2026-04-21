@@ -5,52 +5,53 @@
 --              design team. Templates define the visual shell that customers
 --              can personalize. Each template is versioned; new versions do
 --              not invalidate existing card designs that reference older versions.
+--
+-- Notes:
+--   compatible_product_classes and compatible_networks are stored as JSON arrays
+--   (NVARCHAR(MAX)) e.g. '["CREDIT","DEBIT"]'. Use OPENJSON() to query them.
+--   tags is also a JSON array e.g. '["travel","dark","minimalist"]'.
+--   download_count is a running count of how many cards have used this template.
+--   is_default: when 1 this template is auto-assigned during card issuance if no
+--   design is selected.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS design.design_templates (
-    template_id             UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    template_name           VARCHAR(100)    NOT NULL,
-    display_name            VARCHAR(100)    NOT NULL,
-    version                 SMALLINT        NOT NULL DEFAULT 1,
-    description             TEXT,
+IF OBJECT_ID('design.design_templates', 'U') IS NULL
+CREATE TABLE design.design_templates (
+    template_id                 UNIQUEIDENTIFIER    NOT NULL CONSTRAINT pk_design_templates PRIMARY KEY DEFAULT NEWID(),
+    template_name               NVARCHAR(100)       NOT NULL,
+    display_name                NVARCHAR(100)       NOT NULL,
+    version                     SMALLINT            NOT NULL DEFAULT 1,
+    description                 NVARCHAR(MAX)       NULL,
 
-    -- Compatibility
-    compatible_product_classes  TEXT[]      NOT NULL DEFAULT ARRAY['CREDIT', 'DEBIT', 'PREPAID'],
-    compatible_networks         TEXT[]      NOT NULL DEFAULT ARRAY['VISA', 'MASTERCARD', 'ELO', 'AMEX'],
+    -- Compatibility stored as JSON arrays; use OPENJSON() to filter
+    compatible_product_classes  NVARCHAR(MAX)       NOT NULL DEFAULT N'["CREDIT","DEBIT","PREPAID"]',
+    compatible_networks         NVARCHAR(MAX)       NOT NULL DEFAULT N'["VISA","MASTERCARD","ELO","AMEX"]',
 
     -- Visual properties
-    primary_color           CHAR(7),        -- HEX e.g. #1A2B3C
-    secondary_color         CHAR(7),
-    base_image_url          VARCHAR(500)    NOT NULL,
-    thumbnail_url           VARCHAR(500),
-    is_dark_theme           BOOLEAN         NOT NULL DEFAULT FALSE,
+    primary_color               NCHAR(7)            NULL,   -- HEX e.g. #1A2B3C
+    secondary_color             NCHAR(7)            NULL,
+    base_image_url              NVARCHAR(500)       NOT NULL,
+    thumbnail_url               NVARCHAR(500)       NULL,
+    is_dark_theme               BIT                 NOT NULL DEFAULT 0,
 
     -- Metadata
-    category                VARCHAR(50)     CHECK (category IN (
-                                'CLASSIC', 'NATURE', 'SPORTS', 'ART',
-                                'GRADIENT', 'PATTERN', 'CUSTOM', 'LIMITED_EDITION'
-                            )),
-    tags                    TEXT[],
-    is_active               BOOLEAN         NOT NULL DEFAULT TRUE,
-    is_default              BOOLEAN         NOT NULL DEFAULT FALSE,
-    download_count          INTEGER         NOT NULL DEFAULT 0,
-    created_by              VARCHAR(100),
-    created_at              TIMESTAMPTZ     NOT NULL DEFAULT now(),
-    updated_at              TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    category                    NVARCHAR(50)        NULL
+                                    CONSTRAINT chk_template_category CHECK (category IN (
+                                        N'CLASSIC', N'NATURE', N'SPORTS', N'ART',
+                                        N'GRADIENT', N'PATTERN', N'CUSTOM', N'LIMITED_EDITION'
+                                    )),
+    tags                        NVARCHAR(MAX)       NULL,   -- JSON array of tag strings
+    is_active                   BIT                 NOT NULL DEFAULT 1,
+    is_default                  BIT                 NOT NULL DEFAULT 0,
+    download_count              INT                 NOT NULL DEFAULT 0,
+    created_by                  NVARCHAR(100)       NULL,
+    created_at                  DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    updated_at                  DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET(),
 
-    UNIQUE (template_name, version)
+    CONSTRAINT uq_template_name_version UNIQUE (template_name, version)
 );
+GO
 
-CREATE INDEX idx_templates_active       ON design.design_templates (is_active);
-CREATE INDEX idx_templates_category     ON design.design_templates (category);
-CREATE INDEX idx_templates_product_class ON design.design_templates USING GIN (compatible_product_classes);
-CREATE INDEX idx_templates_tags         ON design.design_templates USING GIN (tags);
-
-COMMENT ON TABLE design.design_templates IS
-    'Catalog of card visual templates available for customer personalization in NovoCard.';
-COMMENT ON COLUMN design.design_templates.compatible_product_classes IS
-    'Array of product classes that can use this template (e.g. ARRAY[''CREDIT'', ''DEBIT'']).';
-COMMENT ON COLUMN design.design_templates.is_default IS
-    'When TRUE this template is auto-assigned during card issuance if no design is selected.';
-COMMENT ON COLUMN design.design_templates.download_count IS
-    'Running count of how many cards have been issued with this template.';
+CREATE INDEX idx_templates_active   ON design.design_templates (is_active);
+CREATE INDEX idx_templates_category ON design.design_templates (category);
+GO

@@ -3,74 +3,118 @@
 -- Application: NovoCard
 -- Tables: card.cards, customer.customers, design.card_designs
 -- Description: Captures all INSERT, UPDATE, and DELETE mutations on sensitive
---              tables and writes a JSONB snapshot to audit.audit_log. Provides
+--              tables and writes a JSON snapshot to audit.audit_log. Provides
 --              a tamper-evident audit trail for compliance and forensic analysis.
 --              Fires AFTER the DML statement to capture committed values.
+--
+-- Notes:
+--   SQL Server triggers are statement-level (set-based). The INSERTED and
+--   DELETED pseudo-tables may contain multiple rows per trigger invocation.
+--   Row snapshots are serialized using FOR JSON AUTO WITHOUT_ARRAY_WRAPPER
+--   on a per-row correlated subquery.
 -- =============================================================================
-
--- ── Trigger function ──────────────────────────────────────────────────────────
-
-CREATE OR REPLACE FUNCTION audit.fn_capture_audit()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_record_id     VARCHAR(100);
-    v_old_values    JSONB;
-    v_new_values    JSONB;
-BEGIN
-    IF TG_OP = 'DELETE' THEN
-        v_record_id  := OLD.ctid::TEXT;    -- fallback; tables should expose a known PK alias
-        v_old_values := to_jsonb(OLD);
-        v_new_values := NULL;
-    ELSIF TG_OP = 'INSERT' THEN
-        v_record_id  := NEW.ctid::TEXT;
-        v_old_values := NULL;
-        v_new_values := to_jsonb(NEW);
-    ELSE  -- UPDATE
-        v_record_id  := NEW.ctid::TEXT;
-        v_old_values := to_jsonb(OLD);
-        v_new_values := to_jsonb(NEW);
-    END IF;
-
-    INSERT INTO audit.audit_log (
-        schema_name, table_name, operation,
-        record_id, old_values, new_values,
-        changed_by, changed_at
-    ) VALUES (
-        TG_TABLE_SCHEMA, TG_TABLE_NAME, TG_OP,
-        v_record_id, v_old_values, v_new_values,
-        current_user, now()
-    );
-
-    RETURN NULL;  -- AFTER trigger; return value ignored
-END;
-$$;
 
 -- ── Apply to card.cards ───────────────────────────────────────────────────────
 
-CREATE OR REPLACE TRIGGER trg_cards_audit
-AFTER INSERT OR UPDATE OR DELETE
+CREATE OR ALTER TRIGGER trg_cards_audit
 ON card.cards
-FOR EACH ROW
-EXECUTE FUNCTION audit.fn_capture_audit();
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @operation NVARCHAR(10);
+
+    IF EXISTS(SELECT 1 FROM INSERTED) AND EXISTS(SELECT 1 FROM DELETED)
+        SET @operation = N'UPDATE';
+    ELSE IF EXISTS(SELECT 1 FROM INSERTED)
+        SET @operation = N'INSERT';
+    ELSE
+        SET @operation = N'DELETE';
+
+    INSERT INTO audit.audit_log (
+        schema_name, table_name, operation, record_id, old_values, new_values, changed_by, changed_at
+    )
+    SELECT
+        N'card',
+        N'cards',
+        @operation,
+        CAST(COALESCE(i.card_id, d.card_id) AS NVARCHAR(100)),
+        (SELECT * FROM DELETED  d2 WHERE d2.card_id = COALESCE(i.card_id, d.card_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        (SELECT * FROM INSERTED i2 WHERE i2.card_id = COALESCE(i.card_id, d.card_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        SYSTEM_USER,
+        SYSDATETIMEOFFSET()
+    FROM INSERTED i
+    FULL OUTER JOIN DELETED d ON d.card_id = i.card_id;
+END;
+GO
 
 -- ── Apply to customer.customers ───────────────────────────────────────────────
 
-CREATE OR REPLACE TRIGGER trg_customers_audit
-AFTER INSERT OR UPDATE OR DELETE
+CREATE OR ALTER TRIGGER trg_customers_audit
 ON customer.customers
-FOR EACH ROW
-EXECUTE FUNCTION audit.fn_capture_audit();
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @operation NVARCHAR(10);
+
+    IF EXISTS(SELECT 1 FROM INSERTED) AND EXISTS(SELECT 1 FROM DELETED)
+        SET @operation = N'UPDATE';
+    ELSE IF EXISTS(SELECT 1 FROM INSERTED)
+        SET @operation = N'INSERT';
+    ELSE
+        SET @operation = N'DELETE';
+
+    INSERT INTO audit.audit_log (
+        schema_name, table_name, operation, record_id, old_values, new_values, changed_by, changed_at
+    )
+    SELECT
+        N'customer',
+        N'customers',
+        @operation,
+        CAST(COALESCE(i.customer_id, d.customer_id) AS NVARCHAR(100)),
+        (SELECT * FROM DELETED  d2 WHERE d2.customer_id = COALESCE(i.customer_id, d.customer_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        (SELECT * FROM INSERTED i2 WHERE i2.customer_id = COALESCE(i.customer_id, d.customer_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        SYSTEM_USER,
+        SYSDATETIMEOFFSET()
+    FROM INSERTED i
+    FULL OUTER JOIN DELETED d ON d.customer_id = i.customer_id;
+END;
+GO
 
 -- ── Apply to design.card_designs ─────────────────────────────────────────────
 
-CREATE OR REPLACE TRIGGER trg_card_designs_audit
-AFTER INSERT OR UPDATE OR DELETE
+CREATE OR ALTER TRIGGER trg_card_designs_audit
 ON design.card_designs
-FOR EACH ROW
-EXECUTE FUNCTION audit.fn_capture_audit();
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
 
-COMMENT ON FUNCTION audit.fn_capture_audit IS
-    'Generic AFTER trigger function that serializes the affected row to JSONB and writes to audit.audit_log.';
+    DECLARE @operation NVARCHAR(10);
+
+    IF EXISTS(SELECT 1 FROM INSERTED) AND EXISTS(SELECT 1 FROM DELETED)
+        SET @operation = N'UPDATE';
+    ELSE IF EXISTS(SELECT 1 FROM INSERTED)
+        SET @operation = N'INSERT';
+    ELSE
+        SET @operation = N'DELETE';
+
+    INSERT INTO audit.audit_log (
+        schema_name, table_name, operation, record_id, old_values, new_values, changed_by, changed_at
+    )
+    SELECT
+        N'design',
+        N'card_designs',
+        @operation,
+        CAST(COALESCE(i.design_id, d.design_id) AS NVARCHAR(100)),
+        (SELECT * FROM DELETED  d2 WHERE d2.design_id = COALESCE(i.design_id, d.design_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        (SELECT * FROM INSERTED i2 WHERE i2.design_id = COALESCE(i.design_id, d.design_id) FOR JSON AUTO, WITHOUT_ARRAY_WRAPPER),
+        SYSTEM_USER,
+        SYSDATETIMEOFFSET()
+    FROM INSERTED i
+    FULL OUTER JOIN DELETED d ON d.design_id = i.design_id;
+END;
+GO

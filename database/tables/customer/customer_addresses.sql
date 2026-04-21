@@ -6,35 +6,35 @@
 --              and one as billing (used for card statement delivery).
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS customer.customer_addresses (
-    address_id      UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id     UUID            NOT NULL
-                        REFERENCES customer.customers (customer_id) ON DELETE CASCADE,
-    address_type    VARCHAR(20)     NOT NULL CHECK (address_type IN ('RESIDENTIAL', 'BILLING', 'COMMERCIAL', 'OTHER')),
-    street          VARCHAR(255)    NOT NULL,
-    number          VARCHAR(20)     NOT NULL,
-    complement      VARCHAR(100),
-    neighborhood    VARCHAR(100),
-    city            VARCHAR(100)    NOT NULL,
-    state           CHAR(2)         NOT NULL,
-    zip_code        VARCHAR(10)     NOT NULL,
-    country         CHAR(2)         NOT NULL DEFAULT 'BR',
-    is_primary      BOOLEAN         NOT NULL DEFAULT FALSE,
-    is_billing      BOOLEAN         NOT NULL DEFAULT FALSE,
-    verified_at     TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
+IF OBJECT_ID('customer.customer_addresses', 'U') IS NULL
+CREATE TABLE customer.customer_addresses (
+    address_id      UNIQUEIDENTIFIER    NOT NULL CONSTRAINT pk_customer_addresses PRIMARY KEY DEFAULT NEWID(),
+    customer_id     UNIQUEIDENTIFIER    NOT NULL
+                        CONSTRAINT fk_addresses_customer REFERENCES customer.customers (customer_id) ON DELETE CASCADE,
+    address_type    NVARCHAR(20)        NOT NULL
+                        CONSTRAINT chk_address_type CHECK (address_type IN (
+                            N'RESIDENTIAL', N'BILLING', N'COMMERCIAL', N'OTHER'
+                        )),
+    street          NVARCHAR(255)       NOT NULL,
+    number          NVARCHAR(20)        NOT NULL,
+    complement      NVARCHAR(100)       NULL,
+    neighborhood    NVARCHAR(100)       NULL,
+    city            NVARCHAR(100)       NOT NULL,
+    state           NCHAR(2)            NOT NULL,
+    zip_code        NVARCHAR(10)        NOT NULL,
+    country         NCHAR(2)            NOT NULL DEFAULT N'BR',
+    -- Marks the default contact/delivery address. Only one primary per customer is expected
+    is_primary      BIT                 NOT NULL DEFAULT 0,
+    -- Marks the address used for card statement delivery and billing correspondence
+    is_billing      BIT                 NOT NULL DEFAULT 0,
+    -- Timestamp when address was confirmed via postal verification or document upload
+    verified_at     DATETIMEOFFSET      NULL,
+    created_at      DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    updated_at      DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET()
 );
+GO
 
 CREATE INDEX idx_addresses_customer_id  ON customer.customer_addresses (customer_id);
 CREATE INDEX idx_addresses_type         ON customer.customer_addresses (address_type);
 CREATE INDEX idx_addresses_zip_code     ON customer.customer_addresses (zip_code);
-
-COMMENT ON TABLE customer.customer_addresses IS
-    'Physical and billing addresses associated with NovoCard customers.';
-COMMENT ON COLUMN customer.customer_addresses.is_primary IS
-    'Marks the default contact/delivery address. Only one primary per customer is expected.';
-COMMENT ON COLUMN customer.customer_addresses.is_billing IS
-    'Marks the address used for card statement delivery and billing correspondence.';
-COMMENT ON COLUMN customer.customer_addresses.verified_at IS
-    'Timestamp when address was confirmed via postal verification or document upload.';
+GO

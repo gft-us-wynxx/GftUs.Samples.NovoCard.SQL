@@ -6,7 +6,6 @@
 --              and transaction records.
 -- =============================================================================
 
-CREATE SCHEMA IF NOT EXISTS card;
-
-COMMENT ON SCHEMA card IS
-    'Card issuance, account balances, spending limits, status history, and transactions for NovoCard.';
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'card')
+    EXEC(N'CREATE SCHEMA card');
+GO

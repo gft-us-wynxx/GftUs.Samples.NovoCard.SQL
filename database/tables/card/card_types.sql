@@ -7,36 +7,41 @@
 --              fees, and default limits.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS card.card_types (
-    card_type_id        SERIAL          PRIMARY KEY,
-    type_name           VARCHAR(50)     NOT NULL UNIQUE,
-    product_class       VARCHAR(10)     NOT NULL CHECK (product_class IN ('CREDIT', 'DEBIT', 'PREPAID')),
-    network             VARCHAR(20)     NOT NULL CHECK (network IN ('VISA', 'MASTERCARD', 'ELO', 'AMEX', 'HIPERCARD')),
-    tier                VARCHAR(20)     NOT NULL DEFAULT 'STANDARD'
-                            CHECK (tier IN ('STANDARD', 'GOLD', 'PLATINUM', 'BLACK', 'INFINITE')),
-    annual_fee          NUMERIC(10, 2)  NOT NULL DEFAULT 0.00,
-    minimum_income      NUMERIC(12, 2),
-    minimum_credit_score SMALLINT       CHECK (minimum_credit_score BETWEEN 0 AND 1000),
-    description         TEXT,
-    benefits            JSONB,
-    is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
-    created_at          TIMESTAMPTZ     NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT now()
+IF OBJECT_ID('card.card_types', 'U') IS NULL
+CREATE TABLE card.card_types (
+    card_type_id            INT IDENTITY(1,1)   NOT NULL CONSTRAINT pk_card_types PRIMARY KEY,
+    type_name               NVARCHAR(50)        NOT NULL CONSTRAINT uq_card_types_name UNIQUE,
+    product_class           NVARCHAR(10)        NOT NULL
+                                CONSTRAINT chk_card_types_class CHECK (product_class IN (N'CREDIT', N'DEBIT', N'PREPAID')),
+    network                 NVARCHAR(20)        NOT NULL
+                                CONSTRAINT chk_card_types_network CHECK (network IN (
+                                    N'VISA', N'MASTERCARD', N'ELO', N'AMEX', N'HIPERCARD'
+                                )),
+    tier                    NVARCHAR(20)        NOT NULL DEFAULT N'STANDARD'
+                                CONSTRAINT chk_card_types_tier CHECK (tier IN (
+                                    N'STANDARD', N'GOLD', N'PLATINUM', N'BLACK', N'INFINITE'
+                                )),
+    annual_fee              DECIMAL(10, 2)      NOT NULL DEFAULT 0.00,
+    minimum_income          DECIMAL(12, 2)      NULL,
+    -- Minimum internal credit score required for card issuance. NULL means no restriction
+    minimum_credit_score    SMALLINT            NULL
+                                CONSTRAINT chk_card_types_min_score CHECK (minimum_credit_score BETWEEN 0 AND 1000),
+    description             NVARCHAR(MAX)       NULL,
+    -- JSON array of benefit strings e.g. ["Airport lounge access","2x points on travel"]
+    benefits                NVARCHAR(MAX)       NULL,
+    is_active               BIT                 NOT NULL DEFAULT 1,
+    created_at              DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    updated_at              DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET()
 );
+GO
 
 INSERT INTO card.card_types (type_name, product_class, network, tier, annual_fee, description) VALUES
-    ('NOVOCARD_DEBIT_STANDARD',      'DEBIT',   'MASTERCARD', 'STANDARD', 0.00,   'Standard debit card linked to checking account'),
-    ('NOVOCARD_CREDIT_STANDARD',     'CREDIT',  'VISA',       'STANDARD', 149.90, 'Entry-level credit card for new customers'),
-    ('NOVOCARD_CREDIT_GOLD',         'CREDIT',  'MASTERCARD', 'GOLD',     299.90, 'Gold credit card with travel benefits'),
-    ('NOVOCARD_CREDIT_PLATINUM',     'CREDIT',  'VISA',       'PLATINUM', 599.90, 'Platinum card with concierge and lounge access'),
-    ('NOVOCARD_CREDIT_BLACK',        'CREDIT',  'MASTERCARD', 'BLACK',    0.00,   'Invite-only Black card with unlimited benefits'),
-    ('NOVOCARD_PREPAID_GIFT',        'PREPAID', 'ELO',        'STANDARD', 0.00,   'Single-use prepaid gift card'),
-    ('NOVOCARD_PREPAID_TRAVEL',      'PREPAID', 'VISA',       'STANDARD', 19.90,  'Reloadable multi-currency travel prepaid card'),
-    ('NOVOCARD_PREPAID_CORPORATE',   'PREPAID', 'MASTERCARD', 'STANDARD', 0.00,   'Corporate expense prepaid card managed by employer');
-
-COMMENT ON TABLE card.card_types IS
-    'Product catalog defining the available card types, networks, tiers, and eligibility rules.';
-COMMENT ON COLUMN card.card_types.benefits IS
-    'JSON array of benefit strings (e.g. ["Airport lounge access", "2x points on travel"]).';
-COMMENT ON COLUMN card.card_types.minimum_credit_score IS
-    'Minimum internal credit score required for card issuance. NULL means no restriction.';
+    (N'NOVOCARD_DEBIT_STANDARD',    N'DEBIT',   N'MASTERCARD', N'STANDARD', 0.00,   N'Standard debit card linked to checking account'),
+    (N'NOVOCARD_CREDIT_STANDARD',   N'CREDIT',  N'VISA',       N'STANDARD', 149.90, N'Entry-level credit card for new customers'),
+    (N'NOVOCARD_CREDIT_GOLD',       N'CREDIT',  N'MASTERCARD', N'GOLD',     299.90, N'Gold credit card with travel benefits'),
+    (N'NOVOCARD_CREDIT_PLATINUM',   N'CREDIT',  N'VISA',       N'PLATINUM', 599.90, N'Platinum card with concierge and lounge access'),
+    (N'NOVOCARD_CREDIT_BLACK',      N'CREDIT',  N'MASTERCARD', N'BLACK',    0.00,   N'Invite-only Black card with unlimited benefits'),
+    (N'NOVOCARD_PREPAID_GIFT',      N'PREPAID', N'ELO',        N'STANDARD', 0.00,   N'Single-use prepaid gift card'),
+    (N'NOVOCARD_PREPAID_TRAVEL',    N'PREPAID', N'VISA',       N'STANDARD', 19.90,  N'Reloadable multi-currency travel prepaid card'),
+    (N'NOVOCARD_PREPAID_CORPORATE', N'PREPAID', N'MASTERCARD', N'STANDARD', 0.00,   N'Corporate expense prepaid card managed by employer');
+GO

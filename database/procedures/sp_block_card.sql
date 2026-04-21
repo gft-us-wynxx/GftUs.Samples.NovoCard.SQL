@@ -8,50 +8,44 @@
 --              manual analyst review.
 --
 -- Parameters:
---   p_card_id       UUID    - Card to block
---   p_block_type    VARCHAR - TEMPORARY | FRAUD
---   p_reason        VARCHAR - Human-readable reason for the block
---   p_initiated_by  VARCHAR - CUSTOMER | RISK_ANALYST | FRAUD_ENGINE | SUPPORT
---   p_operator_id   VARCHAR - Employee ID when initiated_by is not CUSTOMER
---   p_channel       VARCHAR - Channel of the request
+--   @p_card_id       UNIQUEIDENTIFIER - Card to block
+--   @p_block_type    NVARCHAR         - TEMPORARY | FRAUD
+--   @p_reason        NVARCHAR         - Human-readable reason for the block
+--   @p_initiated_by  NVARCHAR         - CUSTOMER | RISK_ANALYST | FRAUD_ENGINE | SUPPORT
+--   @p_operator_id   NVARCHAR         - Employee ID when initiated_by is not CUSTOMER
+--   @p_channel       NVARCHAR         - Channel of the request
 -- =============================================================================
 
-CREATE OR REPLACE PROCEDURE card.sp_block_card(
-    p_card_id       UUID,
-    p_block_type    VARCHAR(20)     DEFAULT 'TEMPORARY',
-    p_reason        VARCHAR(255)    DEFAULT NULL,
-    p_initiated_by  VARCHAR(20)     DEFAULT 'CUSTOMER',
-    p_operator_id   VARCHAR(100)    DEFAULT NULL,
-    p_channel       VARCHAR(20)     DEFAULT 'APP'
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_new_status    VARCHAR(30);
+CREATE OR ALTER PROCEDURE card.sp_block_card
+    @p_card_id      UNIQUEIDENTIFIER,
+    @p_block_type   NVARCHAR(20)    = N'TEMPORARY',
+    @p_reason       NVARCHAR(255)   = NULL,
+    @p_initiated_by NVARCHAR(20)    = N'CUSTOMER',
+    @p_operator_id  NVARCHAR(100)   = NULL,
+    @p_channel      NVARCHAR(20)    = N'APP'
+AS
 BEGIN
-    IF p_block_type NOT IN ('TEMPORARY', 'FRAUD') THEN
-        RAISE EXCEPTION 'Invalid block type %. Must be TEMPORARY or FRAUD.', p_block_type;
-    END IF;
+    SET NOCOUNT ON;
 
-    IF p_block_type = 'FRAUD' AND p_initiated_by = 'CUSTOMER' THEN
-        RAISE EXCEPTION 'Customers cannot initiate FRAUD blocks. Use TEMPORARY instead.';
-    END IF;
+    DECLARE @v_new_status NVARCHAR(30);
 
-    v_new_status := CASE p_block_type
-        WHEN 'TEMPORARY' THEN 'BLOCKED_TEMPORARY'
-        WHEN 'FRAUD'     THEN 'BLOCKED_FRAUD'
+    IF @p_block_type NOT IN (N'TEMPORARY', N'FRAUD')
+        THROW 51000, 'Invalid block type. Must be TEMPORARY or FRAUD.', 1;
+
+    IF @p_block_type = N'FRAUD' AND @p_initiated_by = N'CUSTOMER'
+        THROW 51001, 'Customers cannot initiate FRAUD blocks. Use TEMPORARY instead.', 1;
+
+    SET @v_new_status = CASE @p_block_type
+        WHEN N'TEMPORARY' THEN N'BLOCKED_TEMPORARY'
+        WHEN N'FRAUD'     THEN N'BLOCKED_FRAUD'
     END;
 
-    CALL card.sp_update_card_status(
-        p_card_id       => p_card_id,
-        p_new_status    => v_new_status,
-        p_reason        => p_reason,
-        p_initiated_by  => p_initiated_by,
-        p_operator_id   => p_operator_id,
-        p_channel       => p_channel
-    );
+    EXEC card.sp_update_card_status
+        @p_card_id      = @p_card_id,
+        @p_new_status   = @v_new_status,
+        @p_reason       = @p_reason,
+        @p_initiated_by = @p_initiated_by,
+        @p_operator_id  = @p_operator_id,
+        @p_channel      = @p_channel;
 END;
-$$;
-
-COMMENT ON PROCEDURE card.sp_block_card IS
-    'Blocks a card as BLOCKED_TEMPORARY (customer-reversible) or BLOCKED_FRAUD (analyst review required).';
+GO

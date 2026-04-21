@@ -8,145 +8,155 @@
 --              and daily limit checks before acceptance.
 --
 -- Parameters:
---   p_card_id               UUID    - Card being charged
---   p_amount                NUMERIC - Transaction amount in billing currency
---   p_transaction_type      VARCHAR - PURCHASE | CASH_WITHDRAWAL | BALANCE_LOAD | etc.
---   p_status                VARCHAR - AUTHORIZED | POSTED | DECLINED
---   p_merchant_name         VARCHAR - Merchant display name
---   p_merchant_id           VARCHAR - Acquirer merchant ID
---   p_merchant_category_code CHAR(4) - ISO MCC
---   p_authorization_code    VARCHAR - Issuer authorization code
---   p_is_online             BOOLEAN - Online/CNP flag
---   p_is_international      BOOLEAN - Cross-border flag
---   p_is_contactless        BOOLEAN - NFC flag
+--   @p_card_id                UNIQUEIDENTIFIER - Card being charged
+--   @p_amount                 DECIMAL          - Transaction amount in billing currency
+--   @p_transaction_type       NVARCHAR         - PURCHASE | CASH_WITHDRAWAL | BALANCE_LOAD | etc.
+--   @p_status                 NVARCHAR         - AUTHORIZED | POSTED | DECLINED
+--   @p_merchant_name          NVARCHAR         - Merchant display name
+--   @p_merchant_id            NVARCHAR         - Acquirer merchant ID
+--   @p_merchant_category_code CHAR(4)          - ISO MCC
+--   @p_authorization_code     NVARCHAR         - Issuer authorization code
+--   @p_is_online              BIT              - Online/CNP flag
+--   @p_is_international       BIT              - Cross-border flag
+--   @p_is_contactless         BIT              - NFC flag
+--   @p_installments           SMALLINT         - Number of installments (1 = none)
+--   @p_transaction_id         UNIQUEIDENTIFIER OUTPUT - Returns the new transaction_id
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION card.sp_process_transaction(
-    p_card_id                   UUID,
-    p_amount                    NUMERIC(15, 2),
-    p_transaction_type          VARCHAR(30)     DEFAULT 'PURCHASE',
-    p_status                    VARCHAR(20)     DEFAULT 'AUTHORIZED',
-    p_merchant_name             VARCHAR(255)    DEFAULT NULL,
-    p_merchant_id               VARCHAR(50)     DEFAULT NULL,
-    p_merchant_category_code    CHAR(4)         DEFAULT NULL,
-    p_authorization_code        VARCHAR(20)     DEFAULT NULL,
-    p_is_online                 BOOLEAN         DEFAULT FALSE,
-    p_is_international          BOOLEAN         DEFAULT FALSE,
-    p_is_contactless            BOOLEAN         DEFAULT FALSE,
-    p_installments              SMALLINT        DEFAULT 1
-)
-RETURNS UUID
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_transaction_id    UUID;
-    v_account_id        UUID;
-    v_card_status       VARCHAR(30);
-    v_available         NUMERIC(15, 2);
-    v_single_limit      NUMERIC(12, 2);
-    v_daily_limit       NUMERIC(12, 2);
-    v_online_limit      NUMERIC(12, 2);
-    v_daily_spent       NUMERIC(15, 2);
-    v_decline_reason    VARCHAR(100);
+CREATE OR ALTER PROCEDURE card.sp_process_transaction
+    @p_card_id                  UNIQUEIDENTIFIER,
+    @p_amount                   DECIMAL(15, 2),
+    @p_transaction_type         NVARCHAR(30)        = N'PURCHASE',
+    @p_status                   NVARCHAR(20)        = N'AUTHORIZED',
+    @p_merchant_name            NVARCHAR(255)       = NULL,
+    @p_merchant_id              NVARCHAR(50)        = NULL,
+    @p_merchant_category_code   CHAR(4)             = NULL,
+    @p_authorization_code       NVARCHAR(20)        = NULL,
+    @p_is_online                BIT                 = 0,
+    @p_is_international         BIT                 = 0,
+    @p_is_contactless           BIT                 = 0,
+    @p_installments             SMALLINT            = 1,
+    @p_transaction_id           UNIQUEIDENTIFIER    OUTPUT
+AS
 BEGIN
-    -- Get card and account state
-    SELECT c.status, ca.account_id, ca.available_balance
-    INTO   v_card_status, v_account_id, v_available
+    SET NOCOUNT ON;
+
+    DECLARE
+        @v_account_id       UNIQUEIDENTIFIER,
+        @v_card_status      NVARCHAR(30),
+        @v_available        DECIMAL(15, 2),
+        @v_single_limit     DECIMAL(12, 2),
+        @v_daily_limit      DECIMAL(12, 2),
+        @v_online_limit     DECIMAL(12, 2),
+        @v_daily_spent      DECIMAL(15, 2),
+        @v_decline_reason   NVARCHAR(100),
+        @v_today_start      DATETIMEOFFSET,
+        @v_effective_status NVARCHAR(20);
+
+    SET @v_effective_status = @p_status;
+
+    -- Get card and account state with update lock
+    SELECT @v_card_status = c.status,
+           @v_account_id  = ca.account_id,
+           @v_available   = ca.available_balance
     FROM   card.cards c
     INNER JOIN card.card_accounts ca ON ca.card_id = c.card_id
-    WHERE  c.card_id = p_card_id
-    FOR UPDATE OF ca;
+    WHERE  c.card_id = @p_card_id
+    OPTION (RECOMPILE);
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Card % not found', p_card_id;
-    END IF;
+    IF @@ROWCOUNT = 0
+        THROW 51000, 'Card not found.', 1;
 
     -- Card must be active for authorizations
-    IF p_status = 'AUTHORIZED' AND v_card_status <> 'ACTIVE' THEN
-        p_status := 'DECLINED';
-        v_decline_reason := 'CARD_NOT_ACTIVE';
-    END IF;
+    IF @v_effective_status = N'AUTHORIZED' AND @v_card_status <> N'ACTIVE'
+    BEGIN
+        SET @v_effective_status = N'DECLINED';
+        SET @v_decline_reason   = N'CARD_NOT_ACTIVE';
+    END;
 
-    -- Limit checks (only for purchase-type authorizations)
-    IF p_status = 'AUTHORIZED' AND p_transaction_type IN ('PURCHASE', 'CASH_ADVANCE', 'CASH_WITHDRAWAL') THEN
-        SELECT cl.single_transaction_limit, cl.daily_purchase_limit, cl.online_transaction_limit
-        INTO   v_single_limit, v_daily_limit, v_online_limit
-        FROM   card.card_limits cl
-        WHERE  cl.card_id = p_card_id;
+    -- Limit checks for purchase-type authorizations
+    IF @v_effective_status = N'AUTHORIZED' AND @p_transaction_type IN (N'PURCHASE', N'CASH_ADVANCE', N'CASH_WITHDRAWAL')
+    BEGIN
+        SELECT @v_single_limit = single_transaction_limit,
+               @v_daily_limit  = daily_purchase_limit,
+               @v_online_limit = online_transaction_limit
+        FROM   card.card_limits
+        WHERE  card_id = @p_card_id;
 
-        -- Single transaction check
-        IF p_amount > v_single_limit THEN
-            p_status := 'DECLINED';
-            v_decline_reason := 'EXCEEDS_SINGLE_TRANSACTION_LIMIT';
-        END IF;
+        -- Single-transaction check
+        IF @p_amount > @v_single_limit
+        BEGIN
+            SET @v_effective_status = N'DECLINED';
+            SET @v_decline_reason   = N'EXCEEDS_SINGLE_TRANSACTION_LIMIT';
+        END;
 
         -- Daily limit check
-        IF p_status = 'AUTHORIZED' THEN
-            SELECT COALESCE(SUM(amount), 0)
-            INTO   v_daily_spent
-            FROM   card.transactions
-            WHERE  card_id = p_card_id
-              AND  transaction_type = p_transaction_type
-              AND  status IN ('AUTHORIZED', 'POSTED')
-              AND  authorized_at >= DATE_TRUNC('day', now());
+        IF @v_effective_status = N'AUTHORIZED'
+        BEGIN
+            SET @v_today_start = DATEADD(day, DATEDIFF(day, 0, SYSDATETIMEOFFSET()), 0);
 
-            IF (v_daily_spent + p_amount) > v_daily_limit THEN
-                p_status := 'DECLINED';
-                v_decline_reason := 'EXCEEDS_DAILY_LIMIT';
-            END IF;
-        END IF;
+            SELECT @v_daily_spent = COALESCE(SUM(amount), 0)
+            FROM   card.transactions
+            WHERE  card_id          = @p_card_id
+              AND  transaction_type = @p_transaction_type
+              AND  status           IN (N'AUTHORIZED', N'POSTED')
+              AND  authorized_at   >= @v_today_start;
+
+            IF (@v_daily_spent + @p_amount) > @v_daily_limit
+            BEGIN
+                SET @v_effective_status = N'DECLINED';
+                SET @v_decline_reason   = N'EXCEEDS_DAILY_LIMIT';
+            END;
+        END;
 
         -- Online limit check
-        IF p_status = 'AUTHORIZED' AND p_is_online AND p_amount > v_online_limit THEN
-            p_status := 'DECLINED';
-            v_decline_reason := 'EXCEEDS_ONLINE_LIMIT';
-        END IF;
+        IF @v_effective_status = N'AUTHORIZED' AND @p_is_online = 1 AND @p_amount > @v_online_limit
+        BEGIN
+            SET @v_effective_status = N'DECLINED';
+            SET @v_decline_reason   = N'EXCEEDS_ONLINE_LIMIT';
+        END;
 
         -- Available balance check
-        IF p_status = 'AUTHORIZED' AND p_amount > v_available THEN
-            p_status := 'DECLINED';
-            v_decline_reason := 'INSUFFICIENT_FUNDS';
-        END IF;
-    END IF;
+        IF @v_effective_status = N'AUTHORIZED' AND @p_amount > @v_available
+        BEGIN
+            SET @v_effective_status = N'DECLINED';
+            SET @v_decline_reason   = N'INSUFFICIENT_FUNDS';
+        END;
+    END;
 
     -- Insert transaction record
+    SET @p_transaction_id = NEWID();
+
     INSERT INTO card.transactions (
-        card_id, account_id, authorization_code,
+        transaction_id, card_id, account_id, authorization_code,
         transaction_type, amount, billing_currency,
         merchant_name, merchant_id, merchant_category_code,
         status, decline_reason, is_online, is_international,
         is_contactless, installments,
         authorized_at, posted_at
     ) VALUES (
-        p_card_id, v_account_id, p_authorization_code,
-        p_transaction_type, p_amount, 'BRL',
-        p_merchant_name, p_merchant_id, p_merchant_category_code,
-        p_status, v_decline_reason, p_is_online, p_is_international,
-        p_is_contactless, p_installments,
-        now(),
-        CASE WHEN p_status = 'POSTED' THEN now() ELSE NULL END
-    )
-    RETURNING transaction_id INTO v_transaction_id;
+        @p_transaction_id, @p_card_id, @v_account_id, @p_authorization_code,
+        @p_transaction_type, @p_amount, N'BRL',
+        @p_merchant_name, @p_merchant_id, @p_merchant_category_code,
+        @v_effective_status, @v_decline_reason, @p_is_online, @p_is_international,
+        @p_is_contactless, @p_installments,
+        SYSDATETIMEOFFSET(),
+        CASE WHEN @v_effective_status = N'POSTED' THEN SYSDATETIMEOFFSET() ELSE NULL END
+    );
 
     -- Update account balances
-    IF p_status = 'AUTHORIZED' THEN
+    IF @v_effective_status = N'AUTHORIZED'
         UPDATE card.card_accounts SET
-            available_balance = available_balance - p_amount,
-            pending_amount    = pending_amount    + p_amount,
-            updated_at        = now()
-        WHERE account_id = v_account_id;
+            available_balance = available_balance - @p_amount,
+            pending_amount    = pending_amount    + @p_amount,
+            updated_at        = SYSDATETIMEOFFSET()
+        WHERE account_id = @v_account_id;
 
-    ELSIF p_status = 'POSTED' THEN
+    ELSE IF @v_effective_status = N'POSTED'
         UPDATE card.card_accounts SET
-            balance           = balance           + p_amount,
-            available_balance = available_balance - p_amount,
-            updated_at        = now()
-        WHERE account_id = v_account_id;
-    END IF;
-
-    RETURN v_transaction_id;
+            balance           = balance           + @p_amount,
+            available_balance = available_balance - @p_amount,
+            updated_at        = SYSDATETIMEOFFSET()
+        WHERE account_id = @v_account_id;
 END;
-$$;
-
-COMMENT ON FUNCTION card.sp_process_transaction IS
-    'Records a card transaction, enforces velocity and limit controls, and updates account balances. Returns the new transaction_id.';
+GO

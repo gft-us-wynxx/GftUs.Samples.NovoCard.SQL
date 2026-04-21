@@ -6,7 +6,7 @@
 --              Used by the mobile app home screen and customer service dashboards.
 -- =============================================================================
 
-CREATE OR REPLACE VIEW card.vw_active_cards AS
+CREATE OR ALTER VIEW card.vw_active_cards AS
 SELECT
     c.card_id,
     c.customer_id,
@@ -49,12 +49,10 @@ INNER JOIN card.card_types ct
 INNER JOIN card.card_accounts ca
     ON ca.card_id = c.card_id
 LEFT JOIN design.card_designs cd
-    ON cd.card_id = c.card_id AND cd.is_current = TRUE AND cd.approval_status = 'APPROVED'
+    ON cd.card_id = c.card_id AND cd.is_current = 1 AND cd.approval_status = N'APPROVED'
 LEFT JOIN design.design_templates dt
     ON dt.template_id = cd.template_id
 WHERE
-    c.status = 'ACTIVE'
-    AND c.expires_at > now();
-
-COMMENT ON VIEW card.vw_active_cards IS
-    'Active and non-expired cards with account balances and current approved design. Used by mobile and CS tools.';
+    c.status = N'ACTIVE'
+    AND c.expires_at > SYSDATETIMEOFFSET();
+GO

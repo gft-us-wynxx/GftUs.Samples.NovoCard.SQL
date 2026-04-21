@@ -7,7 +7,6 @@
 --              prepaid cards.
 -- =============================================================================
 
-CREATE SCHEMA IF NOT EXISTS design;
-
-COMMENT ON SCHEMA design IS
-    'Card design templates, customer card personalization, and visual asset registry for NovoCard.';
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'design')
+    EXEC(N'CREATE SCHEMA design');
+GO

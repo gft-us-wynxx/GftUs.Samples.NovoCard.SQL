@@ -5,7 +5,6 @@
 --              Customers can own multiple cards across product types.
 -- =============================================================================
 
-CREATE SCHEMA IF NOT EXISTS customer;
-
-COMMENT ON SCHEMA customer IS
-    'Customer identity, contact, and address data for NovoCard cardholders.';
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = N'customer')
+    EXEC(N'CREATE SCHEMA customer');
+GO

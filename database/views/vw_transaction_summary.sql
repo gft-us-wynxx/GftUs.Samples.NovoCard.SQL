@@ -7,7 +7,7 @@
 --              batch process.
 -- =============================================================================
 
-CREATE OR REPLACE VIEW card.vw_transaction_summary AS
+CREATE OR ALTER VIEW card.vw_transaction_summary AS
 SELECT
     t.card_id,
     c.customer_id,
@@ -16,23 +16,24 @@ SELECT
     ct.product_class,
     ct.network,
 
-    DATE_TRUNC('month', t.authorized_at)    AS statement_month,
+    -- Truncate to start of month; use DATEADD/DATEDIFF for broad SQL Server compatibility
+    DATEADD(month, DATEDIFF(month, 0, t.authorized_at), 0)  AS statement_month,
     t.transaction_type,
     t.merchant_category_code,
     t.billing_currency,
 
-    COUNT(*)                                AS transaction_count,
-    SUM(t.amount)                           AS total_amount,
-    AVG(t.amount)                           AS avg_amount,
-    MAX(t.amount)                           AS max_single_transaction,
-    MIN(t.authorized_at)                    AS first_transaction_at,
-    MAX(t.authorized_at)                    AS last_transaction_at,
+    COUNT(*)                                                AS transaction_count,
+    SUM(t.amount)                                           AS total_amount,
+    AVG(t.amount)                                           AS avg_amount,
+    MAX(t.amount)                                           AS max_single_transaction,
+    MIN(t.authorized_at)                                    AS first_transaction_at,
+    MAX(t.authorized_at)                                    AS last_transaction_at,
 
-    COUNT(*) FILTER (WHERE t.is_online = TRUE)          AS online_count,
-    COUNT(*) FILTER (WHERE t.is_international = TRUE)   AS international_count,
-    COUNT(*) FILTER (WHERE t.is_contactless = TRUE)     AS contactless_count,
-    COUNT(*) FILTER (WHERE t.status = 'REVERSED')       AS reversal_count,
-    COUNT(*) FILTER (WHERE t.status = 'DISPUTED')       AS dispute_count
+    SUM(CASE WHEN t.is_online       = 1 THEN 1 ELSE 0 END) AS online_count,
+    SUM(CASE WHEN t.is_international = 1 THEN 1 ELSE 0 END) AS international_count,
+    SUM(CASE WHEN t.is_contactless  = 1 THEN 1 ELSE 0 END) AS contactless_count,
+    SUM(CASE WHEN t.status = N'REVERSED' THEN 1 ELSE 0 END) AS reversal_count,
+    SUM(CASE WHEN t.status = N'DISPUTED' THEN 1 ELSE 0 END) AS dispute_count
 
 FROM card.transactions t
 INNER JOIN card.cards c
@@ -40,7 +41,7 @@ INNER JOIN card.cards c
 INNER JOIN card.card_types ct
     ON ct.card_type_id = c.card_type_id
 WHERE
-    t.status IN ('POSTED', 'REVERSED', 'DISPUTED')
+    t.status IN (N'POSTED', N'REVERSED', N'DISPUTED')
 GROUP BY
     t.card_id,
     c.customer_id,
@@ -48,10 +49,8 @@ GROUP BY
     c.last_four_digits,
     ct.product_class,
     ct.network,
-    DATE_TRUNC('month', t.authorized_at),
+    DATEADD(month, DATEDIFF(month, 0, t.authorized_at), 0),
     t.transaction_type,
     t.merchant_category_code,
     t.billing_currency;
-
-COMMENT ON VIEW card.vw_transaction_summary IS
-    'Monthly per-card spending aggregates by transaction type and MCC. Used for statements and analytics.';
+GO

@@ -6,46 +6,32 @@
 --              and overall KYC and status context. Used by CRM and risk teams.
 -- =============================================================================
 
-CREATE OR REPLACE VIEW customer.vw_customer_card_portfolio AS
+CREATE OR ALTER VIEW customer.vw_customer_card_portfolio AS
 SELECT
     cust.customer_id,
     cust.full_name,
     cust.email,
     cust.kyc_status,
-    cust.status                         AS customer_status,
+    cust.status                                     AS customer_status,
     cust.credit_score,
     cust.income_range,
 
     -- Card counts by product class
-    COUNT(c.card_id)                    AS total_cards,
-    COUNT(c.card_id) FILTER (
-        WHERE ct.product_class = 'CREDIT'
-        AND c.status = 'ACTIVE')        AS active_credit_cards,
-    COUNT(c.card_id) FILTER (
-        WHERE ct.product_class = 'DEBIT'
-        AND c.status = 'ACTIVE')        AS active_debit_cards,
-    COUNT(c.card_id) FILTER (
-        WHERE ct.product_class = 'PREPAID'
-        AND c.status = 'ACTIVE')        AS active_prepaid_cards,
+    COUNT(c.card_id)                                AS total_cards,
+    SUM(CASE WHEN ct.product_class = N'CREDIT'  AND c.status = N'ACTIVE' THEN 1 ELSE 0 END) AS active_credit_cards,
+    SUM(CASE WHEN ct.product_class = N'DEBIT'   AND c.status = N'ACTIVE' THEN 1 ELSE 0 END) AS active_debit_cards,
+    SUM(CASE WHEN ct.product_class = N'PREPAID' AND c.status = N'ACTIVE' THEN 1 ELSE 0 END) AS active_prepaid_cards,
 
     -- Credit exposure
-    COALESCE(SUM(ca.credit_limit)
-        FILTER (WHERE ct.product_class = 'CREDIT'), 0)
-                                        AS total_credit_limit,
-    COALESCE(SUM(ca.balance)
-        FILTER (WHERE ct.product_class = 'CREDIT'), 0)
-                                        AS total_credit_utilized,
-    COALESCE(SUM(ca.available_balance)
-        FILTER (WHERE ct.product_class = 'CREDIT'), 0)
-                                        AS total_credit_available,
+    COALESCE(SUM(CASE WHEN ct.product_class = N'CREDIT' THEN ca.credit_limit    END), 0) AS total_credit_limit,
+    COALESCE(SUM(CASE WHEN ct.product_class = N'CREDIT' THEN ca.balance         END), 0) AS total_credit_utilized,
+    COALESCE(SUM(CASE WHEN ct.product_class = N'CREDIT' THEN ca.available_balance END), 0) AS total_credit_available,
 
     -- Prepaid balances
-    COALESCE(SUM(ca.balance)
-        FILTER (WHERE ct.product_class = 'PREPAID'), 0)
-                                        AS total_prepaid_balance,
+    COALESCE(SUM(CASE WHEN ct.product_class = N'PREPAID' THEN ca.balance END), 0)        AS total_prepaid_balance,
 
     -- Activity
-    MAX(c.last_used_at)                 AS last_card_used_at,
+    MAX(c.last_used_at)                             AS last_card_used_at,
     cust.onboarded_at,
     cust.last_login_at
 
@@ -66,6 +52,4 @@ GROUP BY
     cust.income_range,
     cust.onboarded_at,
     cust.last_login_at;
-
-COMMENT ON VIEW customer.vw_customer_card_portfolio IS
-    'Per-customer summary of card holdings, credit exposure, and prepaid balances. Used by CRM and risk systems.';
+GO

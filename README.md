@@ -1,6 +1,6 @@
 # Gftus.Samples.NovoCard.SQL
 
-PostgreSQL reference schema for **NovoCard** — a credit, debit, and prepaid card management platform. This sample demonstrates real-world database design patterns including multi-schema organization, audit trails, stored procedures, triggers, and analytical views.
+SQL Server reference schema for **NovoCard** — a credit, debit, and prepaid card management platform. This sample demonstrates real-world database design patterns including multi-schema organization, audit trails, stored procedures, triggers, and analytical views.
 
 ---
 
@@ -130,4 +130,28 @@ Run scripts in this order to build the schema from scratch:
 6. `database/procedures/` — stored procedures
 7. `database/views/` — views
 
-> Requires PostgreSQL 14 or later.
+> Requires SQL Server 2016 or later (uses `CREATE OR ALTER`, `THROW`, `FOR JSON`, filtered indexes, and `DATETIMEOFFSET`).
+
+## Key Type Mappings (PostgreSQL → SQL Server)
+
+| PostgreSQL | SQL Server |
+|-----------|-----------|
+| `UUID` | `UNIQUEIDENTIFIER` |
+| `SERIAL` / `BIGSERIAL` | `INT IDENTITY(1,1)` / `BIGINT IDENTITY(1,1)` |
+| `BOOLEAN` | `BIT` (1/0) |
+| `TIMESTAMPTZ` | `DATETIMEOFFSET` |
+| `VARCHAR(n)` / `TEXT` | `NVARCHAR(n)` / `NVARCHAR(MAX)` |
+| `NUMERIC(p,s)` | `DECIMAL(p,s)` |
+| `JSONB` | `NVARCHAR(MAX)` (query with `OPENJSON`, `JSON_VALUE`) |
+| `INET` | `VARCHAR(45)` |
+| `TEXT[]` (arrays) | `NVARCHAR(MAX)` JSON array (query with `OPENJSON`) |
+| `gen_random_uuid()` | `NEWID()` |
+| `now()` | `SYSDATETIMEOFFSET()` |
+| `current_user` | `SYSTEM_USER` |
+| `CREATE OR REPLACE` | `CREATE OR ALTER` |
+| `RAISE EXCEPTION` | `THROW` |
+| `LANGUAGE plpgsql` | T-SQL (native) |
+| `FOR EACH ROW` trigger | Statement-level trigger (`INSERTED`/`DELETED` tables) |
+| `FILTER (WHERE ...)` aggregate | `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` |
+| `BOOL_AND(col)` | `CAST(MIN(CAST(col AS INT)) AS BIT)` |
+| `DATE_TRUNC('month', col)` | `DATEADD(month, DATEDIFF(month, 0, col), 0)` |

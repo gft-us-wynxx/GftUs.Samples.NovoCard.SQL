@@ -2,51 +2,54 @@
 -- Table: design.card_designs
 -- Application: NovoCard
 -- Description: Records the design applied to a specific card. A card has at
---              most one current design (is_current = TRUE) but retains history
+--              most one current design (is_current = 1) but retains history
 --              of all previous designs for traceability. Customers can
 --              personalize text and color overrides on top of the base template.
+--
+-- Notes:
+--   custom_name_text: optional name override printed on the card face (max 26 chars).
+--   is_current: only one design per card should have is_current=1 at any time.
+--   approval_status: design personalization requires content moderation approval
+--   before card print/rendering.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS design.card_designs (
-    design_id           UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    card_id             UUID            NOT NULL
-                            REFERENCES card.cards (card_id) ON DELETE CASCADE,
-    template_id         UUID            NOT NULL
-                            REFERENCES design.design_templates (template_id),
+IF OBJECT_ID('design.card_designs', 'U') IS NULL
+CREATE TABLE design.card_designs (
+    design_id           UNIQUEIDENTIFIER    NOT NULL CONSTRAINT pk_card_designs PRIMARY KEY DEFAULT NEWID(),
+    card_id             UNIQUEIDENTIFIER    NOT NULL
+                            CONSTRAINT fk_card_designs_card REFERENCES card.cards (card_id) ON DELETE CASCADE,
+    template_id         UNIQUEIDENTIFIER    NOT NULL
+                            CONSTRAINT fk_card_designs_template REFERENCES design.design_templates (template_id),
 
     -- Customer customization overrides
-    custom_name_text    VARCHAR(26),    -- printed on card instead of full name
-    custom_color        CHAR(7),        -- customer HEX override for accent
-    monogram            CHAR(2),        -- 1-2 character monogram option
-    font_preference     VARCHAR(30),
+    custom_name_text    NVARCHAR(26)        NULL,   -- printed on card instead of full name
+    custom_color        NCHAR(7)            NULL,   -- customer HEX override for accent
+    monogram            NCHAR(2)            NULL,   -- 1-2 character monogram option
+    font_preference     NVARCHAR(30)        NULL,
 
     -- Design state
-    is_current          BOOLEAN         NOT NULL DEFAULT TRUE,
-    approved_at         TIMESTAMPTZ,
-    approval_status     VARCHAR(20)     NOT NULL DEFAULT 'PENDING'
-                            CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')),
-    rejection_reason    VARCHAR(255),
-    assigned_at         TIMESTAMPTZ     NOT NULL DEFAULT now(),
-    replaced_at         TIMESTAMPTZ,
+    is_current          BIT                 NOT NULL DEFAULT 1,
+    approved_at         DATETIMEOFFSET      NULL,
+    approval_status     NVARCHAR(20)        NOT NULL DEFAULT N'PENDING'
+                            CONSTRAINT chk_card_designs_approval CHECK (approval_status IN (
+                                N'PENDING', N'APPROVED', N'REJECTED', N'CANCELLED'
+                            )),
+    rejection_reason    NVARCHAR(255)       NULL,
+    assigned_at         DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    replaced_at         DATETIMEOFFSET      NULL,
 
     -- Rendering metadata
-    render_url          VARCHAR(500),
-    render_version      SMALLINT        NOT NULL DEFAULT 1,
-    rendered_at         TIMESTAMPTZ,
+    render_url          NVARCHAR(500)       NULL,
+    render_version      SMALLINT            NOT NULL DEFAULT 1,
+    rendered_at         DATETIMEOFFSET      NULL,
 
-    created_at          TIMESTAMPTZ     NOT NULL DEFAULT now()
+    created_at          DATETIMEOFFSET      NOT NULL DEFAULT SYSDATETIMEOFFSET()
 );
+GO
 
 CREATE INDEX idx_card_designs_card_id       ON design.card_designs (card_id);
 CREATE INDEX idx_card_designs_template_id   ON design.card_designs (template_id);
-CREATE INDEX idx_card_designs_is_current    ON design.card_designs (card_id) WHERE is_current = TRUE;
+-- Filtered index: only one current design per card at any time
+CREATE UNIQUE INDEX idx_card_designs_one_current ON design.card_designs (card_id) WHERE is_current = 1;
 CREATE INDEX idx_card_designs_approval      ON design.card_designs (approval_status);
-
-COMMENT ON TABLE design.card_designs IS
-    'Design assignments per card, including customization overrides and approval workflow state.';
-COMMENT ON COLUMN design.card_designs.custom_name_text IS
-    'Optional name override printed on the card face (max 26 chars). Defaults to card_holder_name.';
-COMMENT ON COLUMN design.card_designs.is_current IS
-    'Only one design per card should have is_current=TRUE at any time. Set to FALSE on replacement.';
-COMMENT ON COLUMN design.card_designs.approval_status IS
-    'Design personalization requires content moderation approval before card print/rendering.';
+GO
