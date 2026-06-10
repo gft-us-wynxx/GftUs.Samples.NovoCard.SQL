@@ -1,4 +1,4 @@
-# Gftus.Samples.NovoCard.SQL
+# GftUs.Samples.NovoCard.SQL
 
 SQL Server reference schema for **NovoCard** — a credit, debit, and prepaid card management platform. This sample demonstrates real-world database design patterns including multi-schema organization, audit trails, stored procedures, triggers, and analytical views.
 
